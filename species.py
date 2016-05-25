@@ -29,6 +29,7 @@ class species(object):
         self.S = 0
         self.S_island = 0
         self.S_meta = 0
+        self.pi_net = 0
 
     def __str__(self):
         return "<species {}>".format(self.name)
@@ -67,9 +68,33 @@ class species(object):
 
         ## Counter makes a dict, so just get the counts for 2, which indicates 
         ## sites segregating in the pop
+        ## S will not always == S_island + S_meta. If a site is fixed in one pop and not
+        ## present in the other then S will be less than the total. If a site is segragating
+        ## in both pops then S will be greater than the total.
         self.S_island = collections.Counter([len(set(ihaps_t[x])) for x in range(len(ihaps_t))])[2]
         self.S_meta = collections.Counter([len(set(mhaps_t[x])) for x in range(len(mhaps_t))])[2]
         
+        ## Pass in the transposed arrays, since we already have them
+        self.pi_island = get_pi(ihaps_t)
+        self.pi_meta = get_pi(mhaps_t)
+
+        ## pi_net
+        self.pi_net = self.pi - (self.pi_island + self.pi_meta)/2
+
+
+def get_pi(haplotypes):
+    ## If no seg sites in a pop then haplotypes will be 0 length
+    if haplotypes.size == 0:
+        return 0
+    n = len(haplotypes[0])
+    n_comparisons = float(n) * (n - 1) / 2
+
+    pi = 0
+    for hap in haplotypes:
+        k = collections.Counter(hap)['1']
+        pi += float(k) * (n - k) / n_comparisons
+    return(pi)
+
 
 if __name__ == "__main__":
     from tabulate import tabulate
@@ -81,8 +106,8 @@ if __name__ == "__main__":
     data.set_metacommunity("metacommunity_LS4.txt")
     #data.prepopulate(mode="landbridge")
     data.prepopulate(mode="volcanic")
-    for i in range(50000):
-        if not i % 1000:
+    for i in range(1000000):
+        if not i % 10000:
             print("Done {}".format(i))
             #print(i, len(data.local_community), len(set(data.local_community)))
         data.step()
@@ -107,6 +132,7 @@ if __name__ == "__main__":
         s.get_sumstats()
     #print("Species colonization times (in generations):\n{}".format([x.colonization_time for x in sp]))
     #print("Species Ne:\n{}".format([x.Ne for x in sp]))
-    headers = ["Species Name", "Colonization time", "Local Abundance", "Metapopulation Abundance", "pi", "S", "S_island", "S_meta"]
-    acc = [[s.name, s.colonization_time, s.abundance, s.meta_abundance, s.pi, s.S, s.S_island, s.S_meta] for s in sp]
+    headers = ["Species Name", "Col time", "Local Abund", "Metapop Abund", "pi", "pi_net",  "S", "S_island", "pi_island", "S_meta", "pi_meta"]
+    acc = [[s.name, s.colonization_time, s.abundance, s.meta_abundance, s.pi, s.pi_net, s.S, s.S_island, s.pi_island, s.S_meta, s.pi_meta] for s in sp]
+    ##TODO: Sort by colonization time?
     print(tabulate(acc, headers, floatfmt=".4f"))
