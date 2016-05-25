@@ -99,14 +99,13 @@ def get_pi(haplotypes):
 if __name__ == "__main__":
     from tabulate import tabulate
     import implicit_space
-    from ascii_graph import Pyasciigraph
 
     data = implicit_space.implicit_space()
     #data.set_metacommunity("uniform")
     data.set_metacommunity("metacommunity_LS4.txt")
     #data.prepopulate(mode="landbridge")
     data.prepopulate(mode="volcanic")
-    for i in range(1000000):
+    for i in range(50000):
         if not i % 10000:
             print("Done {}".format(i))
             #print(i, len(data.local_community), len(set(data.local_community)))
@@ -117,14 +116,15 @@ if __name__ == "__main__":
     #plt.bar(abundance_distribution.keys(), abundance_distribution.values())
     #plt.show()
 
-    ## Cool ascii bar graph
-    ## The bar grapher buddy doesn't like ints for description so you have to transform it
-    abundance_distribution = [(str(k), v) for k, v in abundance_distribution.items()]
-    graph = Pyasciigraph(graphsymbol="|")
-    print("\n")
-    for line in  graph.graph('Simulated Species Abundance Distribution', abundance_distribution):
-        print(line)
-    print("###############################################################################\n")
+#    ## Cool ascii bar graph
+#    ## The bar grapher buddy doesn't like ints for description so you have to transform it
+#    abundance_distribution = [(str(k), v) for k, v in abundance_distribution.items()]
+#    graph = Pyasciigraph(graphsymbol="|")
+#    print("\n")
+#    for line in  graph.graph('Simulated Species Abundance Distribution', abundance_distribution):
+#        print(line)
+#    print("###############################################################################\n")
+    implicit_space.plot_abundances_ascii(abundance_distribution)
 
     sp = data.get_species()
     for s in sp:

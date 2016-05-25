@@ -2,6 +2,7 @@
 """ Sample object """
 
 import matplotlib.pyplot as plt
+from ascii_graph import Pyasciigraph
 import collections
 import numpy as np
 import itertools
@@ -95,36 +96,38 @@ class implicit_space(object):
             self.divergence_times[new_species] = 0
 
 
-    def step(self):
+    def step(self, nsteps=1):
         ## If there are any members of the local community
         if self.local_community:
             ## Select the individual to die
             self.local_community.remove(random.choice(self.local_community))
         ## Check probability of an immigration event
         if np.random.random_sample() < self.im_rate:
-            ## Sample from the metacommunity
-            migrant_draw = np.random.multinomial(1, self.immigration_probabilities, size=1)
-            #print("Immigration event - {}".format(np.where(migrant_draw == 1)))
-            #print("Immigrant - {}".format(self.species[np.where(migrant_draw == 1)[1][0]]))
-            new_species = self.species[np.where(migrant_draw == 1)[1][0]]
+            ## Loop until you draw species unique in the local community
+            unique = 0
+            while not unique:
+                ## Sample from the metacommunity
+                migrant_draw = np.random.multinomial(1, self.immigration_probabilities, size=1)
+                #print("Immigration event - {}".format(np.where(migrant_draw == 1)))
+                #print("Immigrant - {}".format(self.species[np.where(migrant_draw == 1)[1][0]]))
+                new_species = self.species[np.where(migrant_draw == 1)[1][0]]
 
-            ##TODO: Should set a flag to guard whether or not to allow multiple colonizations
-            if new_species in self.local_community:
-                print("multiple colonization events are forbidden, for now")
-            else:
-                self.local_community.append(new_species)
-                self.divergence_times[new_species] = self.current_time
+                ##TODO: Should set a flag to guard whether or not to allow multiple colonizations
+                if new_species in self.local_community:
+                    print("multiple colonization events are forbidden, for now")
+                    unique = 0
+                else:
+                    self.local_community.append(new_species)
+                    self.divergence_times[new_species] = self.current_time
+                    unique = 1
         else:
-            ## Sample from the local community
+            ## Sample from the local community, including empty demes
             ## Sample all available from local community (community grows slow in volcanic model)
-            #self.local_community.append(random.choice(self.local_community))
+            self.local_community.append(random.choice(self.local_community))
 
             ## Sample only from available extant species (early pops grow quickly in the volcanic model)
             ## If you do this, the original colonizer just overwhelms everything else
             #self.local_community.append(random.choice([x for x in self.local_community if x]))
-
-            ## Try this way, where it samples from all demes, even the empty ones
-            self.local_community.append(random.choice(self.local_community))
 
         ## update current time
         self.current_time += 1
@@ -178,6 +181,7 @@ class implicit_space(object):
         island_species = [species(UUID=UUID, colonization_time=self.current_time-tdiv, abundance=self.local_community.count(UUID),\
                             meta_abundance=self.abundances[self.species.index(UUID)]) for UUID, tdiv in self.divergence_times.items() if self.local_community.count(UUID)]
         return(island_species)
+
 
 if __name__ == "__main__":
     data = implicit_space()
