@@ -101,38 +101,17 @@ if __name__ == "__main__":
     import implicit_space
 
     data = implicit_space.implicit_space()
-    #data.set_metacommunity("uniform")
     data.set_metacommunity("metacommunity_LS4.txt")
-    #data.prepopulate(mode="landbridge")
     data.prepopulate(mode="volcanic")
     for i in range(50000):
         if not i % 10000:
             print("Done {}".format(i))
-            #print(i, len(data.local_community), len(set(data.local_community)))
         data.step()
     abundance_distribution = data.get_abundances(octaves=False)
-    #print("\n\nSpecies abundance distribution (fq class, count):\n{}".format(abundance_distribution))
-    #print("Colonization times per species:\n{}".format(data.divergence_times))
-    #plt.bar(abundance_distribution.keys(), abundance_distribution.values())
-    #plt.show()
-
-#    ## Cool ascii bar graph
-#    ## The bar grapher buddy doesn't like ints for description so you have to transform it
-#    abundance_distribution = [(str(k), v) for k, v in abundance_distribution.items()]
-#    graph = Pyasciigraph(graphsymbol="|")
-#    print("\n")
-#    for line in  graph.graph('Simulated Species Abundance Distribution', abundance_distribution):
-#        print(line)
-#    print("###############################################################################\n")
     implicit_space.plot_abundances_ascii(abundance_distribution)
 
     sp = data.get_species()
     for s in sp:
         s.simulate_seqs()
         s.get_sumstats()
-    #print("Species colonization times (in generations):\n{}".format([x.colonization_time for x in sp]))
-    #print("Species Ne:\n{}".format([x.Ne for x in sp]))
-    headers = ["Species Name", "Col time", "Local Abund", "Metapop Abund", "pi", "pi_net",  "S", "S_island", "pi_island", "S_meta", "pi_meta"]
-    acc = [[s.name, s.colonization_time, s.abundance, s.meta_abundance, s.pi, s.pi_net, s.S, s.S_island, s.pi_island, s.S_meta, s.pi_meta] for s in sp]
-    ##TODO: Sort by colonization time?
-    print(tabulate(acc, headers, floatfmt=".4f"))
+    tabulate_sumstats(data)

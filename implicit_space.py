@@ -15,13 +15,18 @@ from species import species
 # pylint: disable=C0103
 # pylint: disable=R0903
 
+## Limit on the number of redraws in the event of disallowed
+## multiple migration, error out and warn if exceeded
+MAX_DUPLICATE_REDRAWS_FROM_METACOMMUNITY = 150
 
 class implicit_space(object):
     """ ipyrad Sample object. Links to files associated
     with an individual sample, used to combine samples 
     into Assembly objects."""
 
-    def __init__(self):
+    def __init__(self, K=10000, colrate=0.001, quiet=False):
+        self.quiet = quiet
+
         self.immigration_probabilities = []
         self.abundances = []
         self.species = []
@@ -34,11 +39,11 @@ class implicit_space(object):
         self.total_inds = 0
 
         self.maxabundance = 0
-        self.im_rate = 0.001
+        self.colonization_rate = colrate
 
         ## Variables for tracking the local community
         self.local_community = []
-        self.local_inds = 10000
+        self.local_inds = K
         self.divergence_times = {}
 
         self.current_time = 0
@@ -97,40 +102,56 @@ class implicit_space(object):
 
 
     def step(self, nsteps=1):
-        ## If there are any members of the local community
-        if self.local_community:
-            ## Select the individual to die
-            self.local_community.remove(random.choice(self.local_community))
-        ## Check probability of an immigration event
-        if np.random.random_sample() < self.im_rate:
-            ## Loop until you draw species unique in the local community
-            unique = 0
-            while not unique:
-                ## Sample from the metacommunity
-                migrant_draw = np.random.multinomial(1, self.immigration_probabilities, size=1)
-                #print("Immigration event - {}".format(np.where(migrant_draw == 1)))
-                #print("Immigrant - {}".format(self.species[np.where(migrant_draw == 1)[1][0]]))
-                new_species = self.species[np.where(migrant_draw == 1)[1][0]]
-
-                ##TODO: Should set a flag to guard whether or not to allow multiple colonizations
-                if new_species in self.local_community:
-                    print("multiple colonization events are forbidden, for now")
-                    unique = 0
-                else:
-                    self.local_community.append(new_species)
-                    self.divergence_times[new_species] = self.current_time
-                    unique = 1
-        else:
-            ## Sample from the local community, including empty demes
-            ## Sample all available from local community (community grows slow in volcanic model)
-            self.local_community.append(random.choice(self.local_community))
-
-            ## Sample only from available extant species (early pops grow quickly in the volcanic model)
-            ## If you do this, the original colonizer just overwhelms everything else
-            #self.local_community.append(random.choice([x for x in self.local_community if x]))
-
-        ## update current time
-        self.current_time += 1
+        for step in range(nsteps):
+            ## If there are any members of the local community
+            if self.local_community:
+                ## Select the individual to die
+                self.local_community.remove(random.choice(self.local_community))
+            ## Check probability of an immigration event
+            if np.random.random_sample() < self.colonization_rate:
+    
+                ## Loop until you draw species unique in the local community
+                ## The flag to tell 'while when we're done, set when you successfully 
+                ## draw a non-local-doop from the metacommunity
+                unique = 0
+    
+                ## If you set your carrying capacity too high relative to the size of your
+                ## metacommunity then you'll get stuck drawing duplicates over and over
+                idiot_count = 0
+                while not unique:
+                    ## Sample from the metacommunity
+                    migrant_draw = np.random.multinomial(1, self.immigration_probabilities, size=1)
+                    #print("Immigration event - {}".format(np.where(migrant_draw == 1)))
+                    #print("Immigrant - {}".format(self.species[np.where(migrant_draw == 1)[1][0]]))
+                    new_species = self.species[np.where(migrant_draw == 1)[1][0]]
+    
+                    ##TODO: Should set a flag to guard whether or not to allow multiple colonizations
+                    if new_species in self.local_community:
+                        #print("multiple colonization events are forbidden, for now")
+                        unique = 0
+    
+                        if idiot_count > MAX_DUPLICATE_REDRAWS_FROM_METACOMMUNITY:
+                            msg = """Metacommunity is exhausted w/ respect to local
+                            community. Either expand the size of the metacommunity,
+                            decrease the carrying capacity, or switch on multiple
+                            migration (unimplemented)."""
+                            sys.exit()
+                        idiot_count +=1
+                    else:
+                        self.local_community.append(new_species)
+                        self.divergence_times[new_species] = self.current_time
+                        unique = 1
+            else:
+                ## Sample from the local community, including empty demes
+                ## Sample all available from local community (community grows slow in volcanic model)
+                self.local_community.append(random.choice(self.local_community))
+    
+                ## Sample only from available extant species (early pops grow quickly in the volcanic model)
+                ## If you do this, the original colonizer just overwhelms everything else
+                #self.local_community.append(random.choice([x for x in self.local_community if x]))
+    
+            ## update current time
+            self.current_time += 1
 
     def get_abundances(self, octaves=False):
         ## Make a counter for the local_community, counts the number of
