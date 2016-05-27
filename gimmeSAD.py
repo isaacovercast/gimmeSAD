@@ -274,6 +274,8 @@ if __name__ == "__main__":
     ## Start the main loop
     start = time.time()
     for i in range(args.nsims):
+        data.step()
+
         ## Print the progress bar every once in a while
         if not i % 5000 and not i == 0:
             ## Elapsed time
@@ -283,8 +285,6 @@ if __name__ == "__main__":
             rate = float(i)/secs
             remaining_secs = (args.nsims - i) / rate
             progressbar(args.nsims, i, " | elapsed - {} | remaining - {}".format(elapsed, datetime.timedelta(seconds=int(remaining_secs))))
-
-        data.step()
 
         ## Recording data every once in a while
         if not i % args.recording_period and not i == 0: 
