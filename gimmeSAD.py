@@ -185,7 +185,7 @@ def parse_command_line():
         help="Carrying capacity of the island (max # individuals in the local community")
 
     parser.add_argument('-r', metavar='recording_period', dest="recording_period", type=int,
-        default=10000,
+        default=0,
         help="Length of timeslice between samples for logging")
 
     parser.add_argument('-m', metavar='meta', dest="meta", type=str,
@@ -253,6 +253,7 @@ if __name__ == "__main__":
     data.set_metacommunity(args.meta)
     data.prepopulate(mode=args.mode)
 
+    ## Setup output directory and files
     try:
         if os.path.exists(args.outdir) and args.force:
             shutil.rmtree(args.outdir)
@@ -265,6 +266,12 @@ if __name__ == "__main__":
     except Exception as inst:
         sys.exit("problem opening output for writing - {}\n{}".format(args.outdir, inst))
 
+    ## If you don't specify a recording period, then just record
+    ## 10% of the time
+    if not args.recording_period:
+        args.recording_period = args.nsims/10
+
+    ## Start the main loop
     start = time.time()
     for i in range(args.nsims):
         ## Print the progress bar every once in a while
@@ -285,7 +292,7 @@ if __name__ == "__main__":
             data.simulate_seqs()
             out.write("step {}\n".format(i))
             out.write(heatmap_pi_dxy_ascii(data, labels=False)+"\n")
-            heatmap_pi_dxy(data, os.path.join(args.outdir, "plot-"+str(i)+"png"), title="time = " + i)
+            heatmap_pi_dxy(data, os.path.join(args.outdir, "plot-"+str(i)+".png"), title="time = " + str(i))
 
     progressbar(100, 100, " {}     | {}".format(args.nsims, elapsed))
 
