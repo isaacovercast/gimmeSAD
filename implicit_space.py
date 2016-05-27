@@ -7,7 +7,6 @@ import collections
 import numpy as np
 import itertools
 import random
-import uuid
 import os
 
 from species import species
@@ -27,16 +26,21 @@ class implicit_space(object):
     def __init__(self, K=10000, colrate=0.001, quiet=False):
         self.quiet = quiet
 
-        self.immigration_probabilities = []
-        self.abundances = []
-        self.species = []
+        ## List for storing species objects that have had sequence
+        ## simulated and sumstats calculated
+        self.species_objects = []
 
         ## Settings specific to the uniform metacommunity
         self.uniform_inds = 1000
         self.uniform_species = 1000
 
+        ## Variables associated with the metacommunity (these are poorly named)
         ## total_inds has to be set by set_metacommunity
+        ## This is total individuals in the metacommunity
         self.total_inds = 0
+        self.immigration_probabilities = []
+        self.abundances = []
+        self.species = []
 
         self.maxabundance = 0
         self.colonization_rate = colrate
@@ -47,6 +51,7 @@ class implicit_space(object):
         self.divergence_times = {}
 
         self.current_time = 0
+
 
     def set_metacommunity(self, infile):
         """
@@ -66,7 +71,9 @@ class implicit_space(object):
             else:
                 raise Exception("Bad metacommunity input - ".format(infile))
 
-        self.species = [uuid.uuid4() for _ in enumerate(self.abundances)]
+        ## Actually using uuid is v slow
+        #self.species = [uuid.uuid4() for _ in enumerate(self.abundances)]
+        self.species = [x for x in enumerate(self.abundances)]
         self.total_inds = sum(self.abundances)
         self.immigration_probabilities = [float(self.abundances[i])/self.total_inds for i in range(len(self.abundances))]
 
@@ -98,7 +105,7 @@ class implicit_space(object):
             self.local_community = [0] * self.local_inds
             new_species = self.species[self.immigration_probabilities.index(self.maxabundance)]
             self.local_community[0] = new_species
-            self.divergence_times[new_species] = 0
+            self.divergence_times[new_species] = 1
 
 
     def step(self, nsteps=1):
@@ -106,7 +113,11 @@ class implicit_space(object):
             ## If there are any members of the local community
             if self.local_community:
                 ## Select the individual to die
+                #victim = random.choice(self.local_community)
+                #self.local_community.remove(victim)
+                #print("Removing victing - {}".format(victim))
                 self.local_community.remove(random.choice(self.local_community))
+                
             ## Check probability of an immigration event
             if np.random.random_sample() < self.colonization_rate:
     
@@ -144,14 +155,17 @@ class implicit_space(object):
             else:
                 ## Sample from the local community, including empty demes
                 ## Sample all available from local community (community grows slow in volcanic model)
-                self.local_community.append(random.choice(self.local_community))
+                #self.local_community.append(random.choice(self.local_community))
     
                 ## Sample only from available extant species (early pops grow quickly in the volcanic model)
                 ## If you do this, the original colonizer just overwhelms everything else
-                #self.local_community.append(random.choice([x for x in self.local_community if x]))
+                ## This is more similar to the Rosindell and Harmon model, in which they simply
+                ## prepopulate the island entirely with one species. This is effectively the same
+                self.local_community.append(random.choice([x for x in self.local_community if x]))
     
             ## update current time
             self.current_time += 1
+
 
     def get_abundances(self, octaves=False):
         ## Make a counter for the local_community, counts the number of
@@ -198,10 +212,20 @@ class implicit_space(object):
             abundance_distribution = dist_in_octaves
         return abundance_distribution
 
-    def get_species(self):
-        island_species = [species(UUID=UUID, colonization_time=self.current_time-tdiv, abundance=self.local_community.count(UUID),\
+
+    def simulate_seqs(self):
+        ## Setting colonization_time as a scaling factor rather than as a raw tdiv
+        ## The old way of doing this is `self.current_time - tdiv`
+        #self.species_objects = [species(UUID=UUID, colonization_time=1/float(tdiv), abundance=self.local_community.count(UUID),\
+        self.species_objects = [species(UUID=UUID, colonization_time=self.current_time - tdiv, abundance=self.local_community.count(UUID),\
                             meta_abundance=self.abundances[self.species.index(UUID)]) for UUID, tdiv in self.divergence_times.items() if self.local_community.count(UUID)]
-        return(island_species)
+        for s in self.species_objects:
+            s.simulate_seqs()
+            s.get_sumstats()
+
+
+    def get_species(self):
+        return(self.species_objects)
 
 
 if __name__ == "__main__":
