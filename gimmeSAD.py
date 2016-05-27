@@ -7,6 +7,7 @@ from tabulate import tabulate
 import numpy as np
 import argparse
 import datetime
+import shutil
 import time
 import sys
 import os
@@ -58,7 +59,7 @@ def tabulate_sumstats(data):
 
 ## This actually is doing pi x dxy, but some of the variable
 ## names are goofy cuz i developed it for pi x pi_w_island 
-def heatmap_pi_dxy(data, write=""):
+def heatmap_pi_dxy(data, write="", title=""):
     """ The write flag specifies whether or not to write the image
     to a file. You must pass in a file name. If this file exists
     it gets overwritten. Normally write should be a full path.
@@ -96,6 +97,7 @@ def heatmap_pi_dxy(data, write=""):
     
     ## If writing to a file, don't bother displaying it, plus it hangs the program
     if write:
+        plt.title(title)
         plt.savefig(write+".png")
     else:
         plt.show()
@@ -252,26 +254,38 @@ if __name__ == "__main__":
     data.prepopulate(mode=args.mode)
 
     try:
-        if not os.path.exists(args.outdir):
+        if os.path.exists(args.outdir) and args.force:
+            shutil.rmtree(args.outdir)
             os.mkdir(args.outdir)
+        elif not os.path.exists(args.outdir):
+            os.mkdir(args.outdir)
+        else:
+            sys.exit("Output directory exists - {}\nUse the force flag -f to overwrite".format(args.outdir))
         out = open(os.path.join(args.outdir, "gimmeSAD.log"), "w")
     except Exception as inst:
         sys.exit("problem opening output for writing - {}\n{}".format(args.outdir, inst))
 
     start = time.time()
     for i in range(args.nsims):
-        if not i % 5000:
-            elapsed = datetime.timedelta(seconds=int(time.time()-start))
-            progressbar(args.nsims, i, " {}     | {}".format(args.nsims-i, elapsed))
+        ## Print the progress bar every once in a while
+        if not i % 5000 and not i == 0:
+            ## Elapsed time
+            secs = int(time.time()-start)
+            elapsed = datetime.timedelta(seconds=secs)
+            ## Calculate the remaining time
+            rate = float(i)/secs
+            remaining_secs = (args.nsims - i) / rate
+            progressbar(args.nsims, i, " | elapsed - {} | remaining - {}".format(elapsed, datetime.timedelta(seconds=int(remaining_secs))))
 
         data.step()
 
+        ## Recording data every once in a while
         if not i % args.recording_period and not i == 0: 
             ## Every once in a while write out useful info
             data.simulate_seqs()
             out.write("step {}\n".format(i))
             out.write(heatmap_pi_dxy_ascii(data, labels=False)+"\n")
-            heatmap_pi_dxy(data, os.path.join(args.outdir, "plot-"+str(i)+"png"))
+            heatmap_pi_dxy(data, os.path.join(args.outdir, "plot-"+str(i)+"png"), title="time = " + i)
 
     progressbar(100, 100, " {}     | {}".format(args.nsims, elapsed))
 
