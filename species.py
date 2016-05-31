@@ -44,7 +44,7 @@ class species(object):
         meta_pop = msprime.PopulationConfiguration(sample_size=self.meta_sample_size, initial_size=float(self.meta_abundance)/self.abundance)
         ## TODO: Source and dest are reversed in current version of msprime, so if you update
         ## make sure this bug hasn't been fixed, if it has switch source and dest
-        split_event = msprime.MassMigrationEvent(time=self.split_time, source=0, destination=1, proportion=1)
+        split_event = msprime.MassMigration(time=self.split_time, source=1, destination=0, proportion=1)
         self.tree_sequence = msprime.simulate(sample_size=20, length=self.sequence_length, Ne=self.Ne, mutation_rate=self.mutation_rate, \
                                 population_configurations=[island_pop, meta_pop],\
                                 demographic_events=[split_event])
