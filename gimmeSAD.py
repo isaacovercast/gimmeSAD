@@ -273,13 +273,14 @@ if __name__ == "__main__":
 
     ## Start the main loop
     start = time.time()
-    for i in range(args.nsims):
+    elapsed = 0
+    for i in range(1, args.nsims):
         data.step()
 
         ## Print the progress bar every once in a while
-        if not i % 5000 and not i == 0:
+        if not i % 10000:
             ## Elapsed time
-            secs = int(time.time()-start)
+            secs = time.time()-start
             elapsed = datetime.timedelta(seconds=secs)
             ## Calculate the remaining time
             rate = float(i)/secs
@@ -294,7 +295,7 @@ if __name__ == "__main__":
             out.write(heatmap_pi_dxy_ascii(data, labels=False)+"\n")
             heatmap_pi_dxy(data, os.path.join(args.outdir, "plot-"+str(i)+".png"), title="time = " + str(i))
 
-    progressbar(100, 100, " {}     | {}".format(args.nsims, elapsed))
+    progressbar(100, 100, "  |  {}  steps completed  |  Total runtime   {}".format(args.nsims, elapsed))
 
     abundance_distribution = data.get_abundances(octaves=args.octaves)
 

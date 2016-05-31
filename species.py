@@ -14,10 +14,10 @@ class species(object):
     def __init__(self, UUID = "", abundance = 1, meta_abundance = 1, colonization_time = 0):
         self.name = names.names().get_name()
         self.uuid = UUID
-        self.abundance = abundance
+        self.abundance = abundance * 1000
         self.meta_abundance = meta_abundance
-        self.colonization_time = colonization_time
-        self.mutation_rate = .00000001
+        self.colonization_time = np.log(colonization_time)
+        self.mutation_rate = .00001
         self.Ne = self.colonization_time / 4 * abundance
         self.sequence_length = 800
         self.tree_sequence = []
@@ -40,6 +40,9 @@ class species(object):
         return self.__str__()
 
     def simulate_seqs(self):
+        ## This is hackish
+        if self.Ne <= 0:
+            self.Ne = 100
         island_pop = msprime.PopulationConfiguration(sample_size=self.island_sample_size, initial_size=1)
         meta_pop = msprime.PopulationConfiguration(sample_size=self.meta_sample_size, initial_size=float(self.meta_abundance)/self.abundance)
         ## TODO: Source and dest are reversed in current version of msprime, so if you update

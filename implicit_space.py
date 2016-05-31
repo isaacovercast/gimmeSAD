@@ -155,13 +155,13 @@ class implicit_space(object):
             else:
                 ## Sample from the local community, including empty demes
                 ## Sample all available from local community (community grows slow in volcanic model)
-                #self.local_community.append(random.choice(self.local_community))
+                self.local_community.append(random.choice(self.local_community))
     
                 ## Sample only from available extant species (early pops grow quickly in the volcanic model)
                 ## If you do this, the original colonizer just overwhelms everything else
                 ## This is more similar to the Rosindell and Harmon model, in which they simply
                 ## prepopulate the island entirely with one species. This is effectively the same
-                self.local_community.append(random.choice([x for x in self.local_community if x]))
+                #self.local_community.append(random.choice([x for x in self.local_community if x]))
     
             ## update current time
             self.current_time += 1
