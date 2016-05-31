@@ -50,6 +50,8 @@ class implicit_space(object):
         self.local_inds = K
         self.divergence_times = {}
 
+        self.extinctions = 0
+        self.colonizations = 0
         self.current_time = 0
 
 
@@ -113,10 +115,11 @@ class implicit_space(object):
             ## If there are any members of the local community
             if self.local_community:
                 ## Select the individual to die
-                #victim = random.choice(self.local_community)
-                #self.local_community.remove(victim)
-                #print("Removing victing - {}".format(victim))
-                self.local_community.remove(random.choice(self.local_community))
+                victim = random.choice(self.local_community)
+                self.local_community.remove(victim)
+                ## Record local extinction events
+                if not victim in self.local_community:
+                    self.extinctions += 1
                 
             ## Check probability of an immigration event
             if np.random.random_sample() < self.colonization_rate:
@@ -151,6 +154,7 @@ class implicit_space(object):
                     else:
                         self.local_community.append(new_species)
                         self.divergence_times[new_species] = self.current_time
+                        self.colonizations += 1
                         unique = 1
             else:
                 ## Sample from the local community, including empty demes
@@ -245,3 +249,5 @@ if __name__ == "__main__":
     #plt.bar(abundance_distribution.keys(), abundance_distribution.values())
     #plt.show()
     print("Species:\n{}".format(data.get_species()))
+    print("Extinction rate - {}".format(data.extinctions/float(data.current_time)))
+    print("Colonization rate - {}".format(data.colonizations/float(data.current_time)))

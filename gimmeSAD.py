@@ -287,6 +287,9 @@ if __name__ == "__main__":
             remaining_secs = (args.nsims - i) / rate
             progressbar(args.nsims, i, " | elapsed - {} | remaining - {}".format(elapsed, datetime.timedelta(seconds=int(remaining_secs))))
 
+            print("\nExtinction rate - {}".format(data.extinctions/float(data.current_time)))
+            print("Colonization rate - {}".format(data.colonizations/float(data.current_time)))
+
         ## Recording data every once in a while
         if not i % args.recording_period and not i == 0: 
             ## Every once in a while write out useful info
@@ -304,4 +307,6 @@ if __name__ == "__main__":
 
     print(tabulate_sumstats(data))
 
+    print("Extinction rate - {}".format(data.extinctions/float(data.current_time)))
+    print("Colonization rate - {}".format(data.colonizations/float(data.current_time)))
     #print(heatmap_pi_dxy_ascii(data, labels=True))
