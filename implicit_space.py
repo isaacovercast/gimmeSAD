@@ -7,6 +7,7 @@ import collections
 import numpy as np
 import itertools
 import random
+import sys
 import os
 
 from species import species
@@ -94,19 +95,22 @@ class implicit_space(object):
             for i, x in enumerate(init_community[0]):
                 if x:
                     self.local_community.append([self.species[i]] * x)
+                    ## Set founder flag
+                    self.local_community = [(x, True) for x in local_community]
             print("N species = {}".format(len(self.local_community)))
             self.local_community = list(itertools.chain.from_iterable(self.local_community))
             print("N individuals = {}".format(len(self.local_community)))
 
-            ## Divergence times for the landbridge model are dangerously broken.
+            ## All species diverge simultaneously upon creation of the island.
             for taxon in set(self.local_community):
-                self.divergence_times[taxon] = 0
+                self.divergence_times[taxon] = 1
         else:
             ## If not landbridge then doing volcanic, so sample just the most abundant
             ## from the metacommunity
             self.local_community = [0] * self.local_inds
+            self.local_community = [(x, True) for x in self.local_community]
             new_species = self.species[self.immigration_probabilities.index(self.maxabundance)]
-            self.local_community[0] = new_species
+            self.local_community[0] = (new_species, True)
             self.divergence_times[new_species] = 1
 
 
@@ -152,7 +156,7 @@ class implicit_space(object):
                             sys.exit()
                         idiot_count +=1
                     else:
-                        self.local_community.append(new_species)
+                        self.local_community.append((new_species, False))
                         self.divergence_times[new_species] = self.current_time
                         self.colonizations += 1
                         unique = 1
@@ -174,7 +178,7 @@ class implicit_space(object):
     def get_abundances(self, octaves=False):
         ## Make a counter for the local_community, counts the number of
         ## individuals w/in each species
-        abundances = collections.Counter(self.local_community)
+        abundances = collections.Counter([x[0] for x in self.local_community])
 
         ## If we were doing mode=volcanic then there may be some remaining
         ## space in our carrying capacity that is unoccupied (indicated by
@@ -221,8 +225,9 @@ class implicit_space(object):
         ## Setting colonization_time as a scaling factor rather than as a raw tdiv
         ## The old way of doing this is `self.current_time - tdiv`
         #self.species_objects = [species(UUID=UUID, colonization_time=1/float(tdiv), abundance=self.local_community.count(UUID),\
-        self.species_objects = [species(UUID=UUID, colonization_time=self.current_time - tdiv, abundance=self.local_community.count(UUID),\
-                            meta_abundance=self.abundances[self.species.index(UUID)]) for UUID, tdiv in self.divergence_times.items() if self.local_community.count(UUID)]
+        self.species_objects = [species(UUID=UUID, colonization_time=self.current_time - tdiv,\
+                                abundance=[x[0] for x in self.local_community].count(UUID),\
+                                meta_abundance=self.abundances[self.species.index(UUID)]) for UUID, tdiv in self.divergence_times.items() if self.local_community.count(UUID)]
         for s in self.species_objects:
             s.simulate_seqs()
             s.get_sumstats()
@@ -241,7 +246,8 @@ if __name__ == "__main__":
     for i in range(10000):
         if not i % 1000:
             print("Done {}".format(i))
-        #print(i, len(data.local_community), len(set(data.local_community)))
+            #print(i, len(data.local_community), len(set(data.local_community)))
+            #print(data.local_community)
         data.step()
     abundance_distribution = data.get_abundances(octaves=False)
     print("Species abundance distribution:\n{}".format(abundance_distribution))
