@@ -5,6 +5,7 @@ import numpy as np
 import collections      # For Counter
 import msprime
 import names
+import math
 # pylint: disable=C0103
 # pylint: disable=R0903
 
@@ -14,16 +15,20 @@ class species(object):
     def __init__(self, UUID = "", abundance = 1, meta_abundance = 1, colonization_time = 0):
         self.name = names.names().get_name()
         self.uuid = UUID
-        self.abundance = abundance * 1000
-        self.meta_abundance = meta_abundance
-        self.colonization_time = np.log(colonization_time)
-        self.mutation_rate = .00001
-        self.Ne = self.colonization_time / 4 * abundance
+        self.abundance = abundance * 100
+        self.meta_abundance = meta_abundance / 100.
+        #self.colonization_time = np.log(colonization_time)
+        self.colonization_time = colonization_time
+        self.Ne = meta_abundance
+        self.mutation_rate = .00000001
         self.sequence_length = 800
         self.tree_sequence = []
         self.island_sample_size = 10
         self.meta_sample_size = 10
-        self.split_time = 0.1
+
+        ## Need to calculate the growth rate
+        #self.r_island = ((self.abundance - 4.)/self.abundance)/colonization_time
+        self.r_island = 0
 
         ## Stats
         self.pi = 0
@@ -43,14 +48,19 @@ class species(object):
         ## This is hackish
         if self.Ne <= 0:
             self.Ne = 100
-        island_pop = msprime.PopulationConfiguration(sample_size=self.island_sample_size, initial_size=1)
-        meta_pop = msprime.PopulationConfiguration(sample_size=self.meta_sample_size, initial_size=float(self.meta_abundance)/self.abundance)
-        ## TODO: Source and dest are reversed in current version of msprime, so if you update
-        ## make sure this bug hasn't been fixed, if it has switch source and dest
-        split_event = msprime.MassMigration(time=self.split_time, source=1, destination=0, proportion=1)
-        self.tree_sequence = msprime.simulate(sample_size=20, length=self.sequence_length, Ne=self.Ne, mutation_rate=self.mutation_rate, \
-                                population_configurations=[island_pop, meta_pop],\
-                                demographic_events=[split_event])
+        
+        island_pop = msprime.PopulationConfiguration(sample_size=self.island_sample_size,\
+                                                    initial_size=self.abundance,
+                                                    growth_rate=self.r_island)
+        
+        meta_pop = msprime.PopulationConfiguration(sample_size=self.meta_sample_size, initial_size=self.meta_abundance)
+        split_event = msprime.MassMigration(time=self.colonization_time, source=0, destination=1, proportion=1)
+        self.tree_sequence = msprime.simulate(sample_size=20, \
+                                                length=self.sequence_length,\
+                                                Ne=self.meta_abundance,\
+                                                mutation_rate=self.mutation_rate, \
+                                                population_configurations=[island_pop, meta_pop],\
+                                                demographic_events=[split_event])
 
         #self.tree_sequence = msprime.simulate(sample_size=10, Ne=self.Ne, length=self.sequence_length, mutation_rate=self.mutation_rate)
 

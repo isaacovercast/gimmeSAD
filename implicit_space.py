@@ -94,23 +94,25 @@ class implicit_space(object):
             print("Initializing local community:")
             for i, x in enumerate(init_community[0]):
                 if x:
-                    self.local_community.append([self.species[i]] * x)
+                    self.local_community.extend([self.species[i][0]] * x)
                     ## Set founder flag
-                    self.local_community = [(x, True) for x in local_community]
-            print("N species = {}".format(len(self.local_community)))
-            self.local_community = list(itertools.chain.from_iterable(self.local_community))
+            self.local_community = [tuple([x, True]) for x in self.local_community]
+            print("N species = {}".format(len(set([x[0] for x in self.local_community]))))
+            #self.local_community = list(itertools.chain.from_iterable(self.local_community))
             print("N individuals = {}".format(len(self.local_community)))
 
             ## All species diverge simultaneously upon creation of the island.
-            for taxon in set(self.local_community):
+            for taxon in self.local_community:
                 self.divergence_times[taxon] = 1
         else:
             ## If not landbridge then doing volcanic, so sample just the most abundant
             ## from the metacommunity
-            self.local_community = [0] * self.local_inds
-            self.local_community = [(x, True) for x in self.local_community]
-            new_species = self.species[self.immigration_probabilities.index(self.maxabundance)]
-            self.local_community[0] = (new_species, True)
+            ## This is the old way that acts weird
+            #self.local_community = [0] * self.local_inds
+            #self.local_community = [((x,0), True) for x in self.local_community]
+            new_species = (self.species[self.immigration_probabilities.index(self.maxabundance)][0], True)
+            for i in range(1,self.local_inds+1):
+                self.local_community.append(new_species)
             self.divergence_times[new_species] = 1
 
 
@@ -156,20 +158,23 @@ class implicit_space(object):
                             sys.exit()
                         idiot_count +=1
                     else:
-                        self.local_community.append((new_species, False))
-                        self.divergence_times[new_species] = self.current_time
+                        self.local_community.append((new_species[0], False))
+                        self.divergence_times[(new_species[0], False)] = self.current_time
                         self.colonizations += 1
                         unique = 1
             else:
                 ## Sample from the local community, including empty demes
                 ## Sample all available from local community (community grows slow in volcanic model)
+                ## Also, lots of early turnover
+                ## This all was only true before i implemented the full rosindell/harmon model,
+                ## There are no more empty demes in the current config
                 self.local_community.append(random.choice(self.local_community))
     
                 ## Sample only from available extant species (early pops grow quickly in the volcanic model)
                 ## If you do this, the original colonizer just overwhelms everything else
                 ## This is more similar to the Rosindell and Harmon model, in which they simply
                 ## prepopulate the island entirely with one species. This is effectively the same
-                #self.local_community.append(random.choice([x for x in self.local_community if x]))
+                #self.local_community.append(random.choice([x for x in self.local_community if not x[0] == 0]))
     
             ## update current time
             self.current_time += 1
@@ -222,12 +227,25 @@ class implicit_space(object):
 
 
     def simulate_seqs(self):
+        self.species_objects = []
         ## Setting colonization_time as a scaling factor rather than as a raw tdiv
         ## The old way of doing this is `self.current_time - tdiv`
         #self.species_objects = [species(UUID=UUID, colonization_time=1/float(tdiv), abundance=self.local_community.count(UUID),\
-        self.species_objects = [species(UUID=UUID, colonization_time=self.current_time - tdiv,\
-                                abundance=[x[0] for x in self.local_community].count(UUID),\
-                                meta_abundance=self.abundances[self.species.index(UUID)]) for UUID, tdiv in self.divergence_times.items() if self.local_community.count(UUID)]
+        for UUID, tdiv in self.divergence_times.items():
+            #print(self.local_community)
+            if UUID in self.local_community:
+                meta_abundance = -1
+                for x, y in self.species:
+                    if UUID[0] == x:
+                        meta_abundance = y
+                #meta_abundance = [x[1] for x in self.abundances if x[0] == UUID[0]]
+                #meta_abundance = self.abundances[self.species.index(UUID[0])]
+                abundance = self.local_community.count(UUID)
+                #print(self.local_community)
+                self.species_objects.append(species(UUID=UUID, colonization_time=self.current_time - tdiv,\
+                                        abundance=abundance,\
+                                        meta_abundance=meta_abundance))
+
         for s in self.species_objects:
             s.simulate_seqs()
             s.get_sumstats()

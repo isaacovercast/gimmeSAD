@@ -73,6 +73,12 @@ def heatmap_pi_dxy(data, write="", title=""):
     max_pi_island = max([x[1] for x in pis])
     #print(max_pi, max_pi_island)
 
+    ## Using max_pi for each iteration makes the axis labels skip
+    ## all around, it's hard to see what's going on
+    ## Hard coding them seems like a dumb solution
+    #max_pi = 0.03
+    #max_pi_island = 0.03
+
     ## Make the bins
     pi_bins = np.linspace(0, max_pi, 10)
     pi_island_bins = np.linspace(0, max_pi_island, 10)
@@ -279,16 +285,22 @@ if __name__ == "__main__":
 
         ## Print the progress bar every once in a while
         if not i % 10000:
+            founder_flags = [x[1] for x in data.local_community]
+            percent_equil = float(founder_flags.count(False))/len(founder_flags)
+            if not any(founder_flags):
+                print("\nReached equilibrium")
+                break
+
             ## Elapsed time
             secs = time.time()-start
             elapsed = datetime.timedelta(seconds=secs)
             ## Calculate the remaining time
             rate = float(i)/secs
             remaining_secs = (args.nsims - i) / rate
-            progressbar(args.nsims, i, " | elapsed - {} | remaining - {}".format(elapsed, datetime.timedelta(seconds=int(remaining_secs))))
+            progressbar(args.nsims, i, " | %equilib - {} | elapsed - {} | remaining - {}".format(percent_equil, elapsed, datetime.timedelta(seconds=int(remaining_secs))))
 
-            print("\nExtinction rate - {}".format(data.extinctions/float(data.current_time)))
-            print("Colonization rate - {}".format(data.colonizations/float(data.current_time)))
+#            print("\nExtinction rate - {}".format(data.extinctions/float(data.current_time)))
+#            print("Colonization rate - {}".format(data.colonizations/float(data.current_time)))
 
         ## Recording data every once in a while
         if not i % args.recording_period and not i == 0: 
@@ -300,6 +312,7 @@ if __name__ == "__main__":
 
     progressbar(100, 100, "  |  {}  steps completed  |  Total runtime   {}".format(args.nsims, elapsed))
 
+    
     abundance_distribution = data.get_abundances(octaves=args.octaves)
 
     plot_abundances_ascii(abundance_distribution)
@@ -310,3 +323,6 @@ if __name__ == "__main__":
     print("Extinction rate - {}".format(data.extinctions/float(data.current_time)))
     print("Colonization rate - {}".format(data.colonizations/float(data.current_time)))
     #print(heatmap_pi_dxy_ascii(data, labels=True))
+
+    founder_flags = [x[1] for x in data.local_community]
+    print("How close to equilibrium? {}".format(float(founder_flags.count(False))/len(founder_flags)))
