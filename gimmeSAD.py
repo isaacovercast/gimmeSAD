@@ -286,12 +286,20 @@ if __name__ == "__main__":
     ## If you don't specify a recording period, then just record
     ## 10% of the time
     if not args.recording_period:
-        args.recording_period = args.nsims/10
+        if args.nsims == -1:
+            args.recording_period = 100000
+        else:
+            args.recording_period = args.nsims/10
 
     ## Start the main loop
     start = time.time()
     elapsed = 0
     reached_equilib = False
+
+    ## if args.nsims == -1 just run until double equilibrium
+    ## or 10e9 steps (effectively forever)
+    if args.nsims == -1:
+        args.nsims = 100000000000
     for i in range(1, args.nsims):
         data.step()
 
