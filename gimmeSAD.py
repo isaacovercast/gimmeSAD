@@ -12,7 +12,8 @@ import time
 import sys
 import os
 
-import implicit_space
+import implicit_BI
+import implicit_CI
 
 # pylint: disable=C0103
 # pylint: disable=R0903
@@ -174,6 +175,8 @@ def parse_command_line():
     gimmeSAD -p volcanic                ## Set the mode for prepopulating (or not)
                                         ## the local community.
 
+    gimmeSAD -i 4                       ## Set # of colonizing inds per colonization event
+                                        ## if unset basic immigration is assumed (1 individual)
     gimmeSAD -c 0.001                   ## Set colonization rate
 
     gimmeSAD -a                         ## Output abundances in octaves
@@ -189,6 +192,10 @@ def parse_command_line():
     parser.add_argument('-k', metavar='K', dest="K", type=int,
         default=10000,
         help="Carrying capacity of the island (max # individuals in the local community")
+
+    parser.add_argument('-i', metavar='colonizers', dest="colonizers", type=int,
+        default=0,
+        help="Switch mode to clustered colonization and set the # of colonizers per event")
 
     parser.add_argument('-r', metavar='recording_period', dest="recording_period", type=int,
         default=0,
@@ -252,8 +259,12 @@ if __name__ == "__main__":
     ## Parse command line arguments
     args = parse_command_line()
 
-    ## Implicit space is the only model we have at this time
-    data = implicit_space.implicit_space(K=args.K, colrate=args.colrate, quiet=args.quiet)
+    if args.colonizers:
+        ## Implicit space and clustered immigration
+        data = implicit_CI.implicit_CI(K=args.K, colrate=args.colrate, mig_clust_size=args.colonizers, quiet=args.quiet)
+    else:
+        ## Implicit space, one colonizer per event
+        data = implicit_BI.implicit_BI(K=args.K, colrate=args.colrate, quiet=args.quiet)
 
     ## Set model parameters
     data.set_metacommunity(args.meta)
@@ -280,16 +291,25 @@ if __name__ == "__main__":
     ## Start the main loop
     start = time.time()
     elapsed = 0
+    reached_equilib = False
     for i in range(1, args.nsims):
         data.step()
 
         ## Print the progress bar every once in a while
+        ## Set a flag for equilibrium. If you've reached it, flip all the
+        ## founder flags back to True and keep running til next equilibrium
+        ## then stop
         if not i % 10000:
             founder_flags = [x[1] for x in data.local_community]
             percent_equil = float(founder_flags.count(False))/len(founder_flags)
-            if not any(founder_flags):
-                print("\nReached equilibrium")
+            
+            if (not any(founder_flags)) and reached_equilib:
+                print("\nReached second equilibrium")
                 break
+            elif not any(founder_flags):
+                print("\nReached first equilibrium, reset founder flags")
+                data.local_community = [(x[0], True) for x in data.local_community]
+                reached_equilib = True
 
             ## Elapsed time
             secs = time.time()-start
@@ -318,7 +338,8 @@ if __name__ == "__main__":
     plot_abundances_ascii(abundance_distribution)
     data.simulate_seqs()
 
-    print(tabulate_sumstats(data))
+    if not args.quiet:
+        print(tabulate_sumstats(data))
 
     print("Extinction rate - {}".format(data.extinctions/float(data.current_time)))
     print("Colonization rate - {}".format(data.colonizations/float(data.current_time)))

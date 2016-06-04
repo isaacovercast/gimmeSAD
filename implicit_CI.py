@@ -19,12 +19,12 @@ from species import species
 ## multiple migration, error out and warn if exceeded
 MAX_DUPLICATE_REDRAWS_FROM_METACOMMUNITY = 150
 
-class implicit_space(object):
+class implicit_CI(object):
     """ ipyrad Sample object. Links to files associated
     with an individual sample, used to combine samples 
     into Assembly objects."""
 
-    def __init__(self, K=10000, colrate=0.001, quiet=False):
+    def __init__(self, K=10000, colrate=0.001, mig_clust_size=4, quiet=False):
         self.quiet = quiet
 
         ## List for storing species objects that have had sequence
@@ -45,6 +45,10 @@ class implicit_space(object):
 
         self.maxabundance = 0
         self.colonization_rate = colrate
+
+        ## Set the size of the cluster of colonizers
+        ## Setting this to 1 equates to the basic immigration model
+        self.mig_clust_size=mig_clust_size
 
         ## Variables for tracking the local community
         self.local_community = []
@@ -84,7 +88,7 @@ class implicit_space(object):
         
 
     def __str__(self):
-        return "<implicit_space {}>".format(self.name)
+        return "<implicit_CI {}>".format(self.name)
 
 
     def prepopulate(self, mode="landbridge"):
@@ -116,8 +120,9 @@ class implicit_space(object):
             self.divergence_times[new_species] = 1
 
 
-    def step(self, nsteps=1):
-        for step in range(nsteps):
+    ## Remove n individuals from the local community
+    def remove_from_local(self, n=1):
+        for i in range(n):
             ## If there are any members of the local community
             if self.local_community:
                 ## Select the individual to die
@@ -126,6 +131,10 @@ class implicit_space(object):
                 ## Record local extinction events
                 if not victim in self.local_community:
                     self.extinctions += 1
+
+
+    def step(self, nsteps=1):
+        for step in range(nsteps):
                 
             ## Check probability of an immigration event
             if np.random.random_sample() < self.colonization_rate:
@@ -158,11 +167,16 @@ class implicit_space(object):
                             sys.exit()
                         idiot_count +=1
                     else:
-                        self.local_community.append((new_species[0], False))
+                        ## Found a good colonizing species, make room in the local community
+                        self.remove_from_local(n=self.mig_clust_size)
+                        self.local_community.extend([(new_species[0], False)] * self.mig_clust_size)
                         self.divergence_times[(new_species[0], False)] = self.current_time
                         self.colonizations += 1
                         unique = 1
             else:
+                ## Not a colonization event, remove 1 from local community
+                self.remove_from_local(n=1)
+
                 ## Sample from the local community, including empty demes
                 ## Sample all available from local community (community grows slow in volcanic model)
                 ## Also, lots of early turnover
@@ -256,7 +270,7 @@ class implicit_space(object):
 
 
 if __name__ == "__main__":
-    data = implicit_space()
+    data = implicit_CI()
     data.set_metacommunity("uniform")
     #data.set_metacommunity("metacommunity_LS4.txt")
     #data.prepopulate(mode="landbridge")

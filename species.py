@@ -147,9 +147,9 @@ def get_dxy(ihaps_t, mhaps_t):
 
 if __name__ == "__main__":
     from tabulate import tabulate
-    import implicit_space
+    import implicit_BI
 
-    data = implicit_space.implicit_space()
+    data = implicit_BI.implicit_BI()
     data.set_metacommunity("metacommunity_LS4.txt")
     data.prepopulate(mode="volcanic")
     for i in range(50000):
@@ -157,7 +157,7 @@ if __name__ == "__main__":
             print("Done {}".format(i))
         data.step()
     abundance_distribution = data.get_abundances(octaves=False)
-    implicit_space.plot_abundances_ascii(abundance_distribution)
+    implicit_BI.plot_abundances_ascii(abundance_distribution)
 
     sp = data.get_species()
     for s in sp:
