@@ -38,10 +38,11 @@ def plot_abundances_ascii(abundance_distribution):
     ## The bar grapher buddy doesn't like ints for description so you have to transform it
     abundance_distribution = [(str(k), v) for k, v in abundance_distribution.items()]
     graph = Pyasciigraph(graphsymbol="|")
-    print("\n")
+    msg = "\n\n"
     for line in  graph.graph('Simulated Species Abundance Distribution', abundance_distribution):
-        print(line)
-    print("###############################################################################\n")
+        msg = msg + line + "\n"
+    msg = msg + "###############################################################################\n"
+    return msg
 
 
 def plot_abundances_gui(abundance_distribution):
@@ -279,7 +280,7 @@ if __name__ == "__main__":
             os.mkdir(args.outdir)
         else:
             sys.exit("Output directory exists - {}\nUse the force flag -f to overwrite".format(args.outdir))
-        out = open(os.path.join(args.outdir, "gimmeSAD.log"), "w")
+        out = open(os.path.join(args.outdir, "pi_x_dxy.log"), "w")
     except Exception as inst:
         sys.exit("problem opening output for writing - {}\n{}".format(args.outdir, inst))
 
@@ -290,6 +291,7 @@ if __name__ == "__main__":
             args.recording_period = 100000
         else:
             args.recording_period = args.nsims/10
+    print(args.recording_period)
 
     ## Start the main loop
     start = time.time()
@@ -297,9 +299,9 @@ if __name__ == "__main__":
     reached_equilib = False
 
     ## if args.nsims == -1 just run until double equilibrium
-    ## or 10e9 steps (effectively forever)
+    ## or 10e7 steps (effectively forever)
     if args.nsims == -1:
-        args.nsims = 100000000000
+        args.nsims = 100000
     for i in range(1, args.nsims):
         data.step()
 
@@ -327,9 +329,7 @@ if __name__ == "__main__":
             remaining_secs = (args.nsims - i) / rate
             progressbar(args.nsims, i, " | %equilib - {} | elapsed - {} | remaining - {}".format(percent_equil, elapsed, datetime.timedelta(seconds=int(remaining_secs))))
 
-#            print("\nExtinction rate - {}".format(data.extinctions/float(data.current_time)))
-#            print("Colonization rate - {}".format(data.colonizations/float(data.current_time)))
-
+            print(args.recording_period, i)
         ## Recording data every once in a while
         if not i % args.recording_period and not i == 0: 
             ## Every once in a while write out useful info
@@ -338,20 +338,25 @@ if __name__ == "__main__":
             out.write(heatmap_pi_dxy_ascii(data, labels=False)+"\n")
             heatmap_pi_dxy(data, os.path.join(args.outdir, "plot-"+str(i)+".png"), title="time = " + str(i))
 
-    progressbar(100, 100, "  |  {}  steps completed  |  Total runtime   {}".format(args.nsims, elapsed))
+    progressbar(100, 100, "  |  {}  steps completed  |  Total runtime   {}".format(i, elapsed))
 
+    if not reached_equilib:
+        founder_flags = [x[1] for x in data.local_community]
+        print("How close to equilibrium? {}".format(float(founder_flags.count(False))/len(founder_flags)))
     
     abundance_distribution = data.get_abundances(octaves=args.octaves)
 
-    plot_abundances_ascii(abundance_distribution)
+    print(plot_abundances_ascii(abundance_distribution))
     data.simulate_seqs()
 
     if not args.quiet:
         print(tabulate_sumstats(data))
 
+    with open(os.path.join(args.outdir, "gimmeSAD.out"), "w") as stats:
+        stats.write(plot_abundances_ascii(abundance_distribution))
+        stats.write("\n")
+        stats.write(tabulate_sumstats(data))
     print("Extinction rate - {}".format(data.extinctions/float(data.current_time)))
     print("Colonization rate - {}".format(data.colonizations/float(data.current_time)))
     #print(heatmap_pi_dxy_ascii(data, labels=True))
 
-    founder_flags = [x[1] for x in data.local_community]
-    print("How close to equilibrium? {}".format(float(founder_flags.count(False))/len(founder_flags)))
