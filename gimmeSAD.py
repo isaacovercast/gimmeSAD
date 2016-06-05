@@ -5,6 +5,7 @@ from ascii_graph import Pyasciigraph
 import matplotlib.pyplot as plt
 from tabulate import tabulate
 import numpy as np
+import collections
 import argparse
 import datetime
 import shutil
@@ -154,6 +155,29 @@ def heatmap_pi_dxy_ascii(data, labels=False):
 
     return ret
 
+
+def write_sizechanges(outdir, yoyo):
+    """ Write out sizechanges through time for all species extant
+    at the end of the simulation. Takes in an ordered dict of collections """
+
+    out = open(os.path.join(outdir, "pop_yoyos.txt"), 'w')
+    keys = yoyo.keys()
+    keys.reverse()
+    ## Get a list of all extant species, the only ones we care about pop size change in.
+    extant = yoyo[keys[0]].keys()
+    sizes = {}
+    for x in extant:
+        sizes[x] = []
+    ## For each time slice going back in time, record the current pop size of each 
+    ## species of interest
+    for k in keys:
+       for sp, siz in yoyo[k].items():
+            if sp in extant:
+                sizes[sp].append(siz)
+    for k, v in sizes.items():
+        out.write("{} - {}\n".format(k, v))
+    
+
 def parse_command_line():
     """ Parse CLI args. Only three options now. """
 
@@ -207,7 +231,7 @@ def parse_command_line():
         help="Source metacommunity from file or generate uniform")
 
     parser.add_argument('-c', metavar='colrate', dest="colrate", type=float,
-        default=0.001,
+        default=0.003,
         help="Set colonization rate")
 
     parser.add_argument('-o', metavar='outdir', dest="outdir", type=str,
@@ -281,28 +305,36 @@ if __name__ == "__main__":
         else:
             sys.exit("Output directory exists - {}\nUse the force flag -f to overwrite".format(args.outdir))
         out = open(os.path.join(args.outdir, "pi_x_dxy.log"), "w")
+        yoyofile = open(os.path.join(args.outdir, "sizechange_through_time.log"), 'w')
     except Exception as inst:
         sys.exit("problem opening output for writing - {}\n{}".format(args.outdir, inst))
 
     ## If you don't specify a recording period, then just record
     ## 10% of the time
     if not args.recording_period:
-        if args.nsims == -1:
+        if args.nsims < 1:
             args.recording_period = 100000
         else:
             args.recording_period = args.nsims/10
-    print(args.recording_period)
 
     ## Start the main loop
     start = time.time()
     elapsed = 0
     reached_equilib = False
 
+    ## Track pop size changes through time
+    yoyo = collections.OrderedDict()
+
     ## if args.nsims == -1 just run until double equilibrium
     ## or 10e7 steps (effectively forever)
-    if args.nsims == -1:
-        args.nsims = 100000
-    for i in range(1, args.nsims):
+    if args.nsims < 1:
+        args.nsims = 1000000000
+    #for i in range(1, args.nsims):
+    i = 0
+    while True:
+        if i == args.nsims:
+            break
+        i += 1
         data.step()
 
         ## Print the progress bar every once in a while
@@ -310,9 +342,16 @@ if __name__ == "__main__":
         ## founder flags back to True and keep running til next equilibrium
         ## then stop
         if not i % 10000:
+            ## Record abundance of each species through time
+            ## Make a counter for the local_community, counts the number of
+            ## individuals w/in each species
+            abundances = collections.Counter([x[0] for x in data.local_community])
+            yoyofile.write(str(abundances)+"\n")
+            yoyo[i] = abundances
+
+            ## Test for equilibrium
             founder_flags = [x[1] for x in data.local_community]
-            percent_equil = float(founder_flags.count(False))/len(founder_flags)
-            
+            percent_equil = float(founder_flags.count(False))/len(founder_flags)            
             if (not any(founder_flags)) and reached_equilib:
                 print("\nReached second equilibrium")
                 break
@@ -321,7 +360,7 @@ if __name__ == "__main__":
                 data.local_community = [(x[0], True) for x in data.local_community]
                 reached_equilib = True
 
-            ## Elapsed time
+            ## Update progress bar
             secs = time.time()-start
             elapsed = datetime.timedelta(seconds=secs)
             ## Calculate the remaining time
@@ -329,7 +368,6 @@ if __name__ == "__main__":
             remaining_secs = (args.nsims - i) / rate
             progressbar(args.nsims, i, " | %equilib - {} | elapsed - {} | remaining - {}".format(percent_equil, elapsed, datetime.timedelta(seconds=int(remaining_secs))))
 
-            print(args.recording_period, i)
         ## Recording data every once in a while
         if not i % args.recording_period and not i == 0: 
             ## Every once in a while write out useful info
@@ -344,9 +382,12 @@ if __name__ == "__main__":
         founder_flags = [x[1] for x in data.local_community]
         print("How close to equilibrium? {}".format(float(founder_flags.count(False))/len(founder_flags)))
     
+    ## Get all results and write out final sumstats
     abundance_distribution = data.get_abundances(octaves=args.octaves)
-
     print(plot_abundances_ascii(abundance_distribution))
+
+    write_sizechanges(args.outdir, yoyo)
+
     data.simulate_seqs()
 
     if not args.quiet:
