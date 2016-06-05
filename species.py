@@ -15,10 +15,10 @@ class species(object):
     def __init__(self, UUID = "", abundance = 1, meta_abundance = 1, colonization_time = 0):
         self.name = names.names().get_name()
         self.uuid = UUID
-        self.abundance = abundance * 100
+        self.abundance = abundance * 1000
         self.meta_abundance = meta_abundance / 100.
         #self.colonization_time = np.log(colonization_time)
-        self.colonization_time = colonization_time
+        self.colonization_time = colonization_time*100
         self.Ne = meta_abundance
         self.mutation_rate = .00000001
         self.sequence_length = 800
@@ -27,8 +27,7 @@ class species(object):
         self.meta_sample_size = 10
 
         ## Need to calculate the growth rate
-        #self.r_island = ((self.abundance - 4.)/self.abundance)/colonization_time
-        self.r_island = 0
+        self.r_island = -np.log(10./self.abundance)/self.colonization_time
 
         ## Stats
         self.pi = 0
@@ -54,13 +53,28 @@ class species(object):
                                                     growth_rate=self.r_island)
         
         meta_pop = msprime.PopulationConfiguration(sample_size=self.meta_sample_size, initial_size=self.meta_abundance)
-        split_event = msprime.MassMigration(time=self.colonization_time, source=0, destination=1, proportion=1)
+
+        split_event = msprime.MassMigration(time=self.colonization_time,\
+                                            source=0,\
+                                            destination=1,\
+                                            proportion=1)
+
+        island_rate_change_event = msprime.PopulationParametersChange(time=self.colonization_time,\
+                                                                        growth_rate=0,\
+                                                                        population_id=0)
+
+        ## Useful for debugging demographic events. Mass migration and exponetial growth are both working.
+        #print(self.name, self.colonization_time)
+        #debug = msprime.DemographyDebugger(population_configurations=[island_pop, meta_pop],\
+        #                                   demographic_events=[island_rate_change_event, split_event])
+        #debug.print_history()
+
         self.tree_sequence = msprime.simulate(sample_size=20, \
                                                 length=self.sequence_length,\
                                                 Ne=self.meta_abundance,\
                                                 mutation_rate=self.mutation_rate, \
                                                 population_configurations=[island_pop, meta_pop],\
-                                                demographic_events=[split_event])
+                                                demographic_events=[island_rate_change_event, split_event])
 
         #self.tree_sequence = msprime.simulate(sample_size=10, Ne=self.Ne, length=self.sequence_length, mutation_rate=self.mutation_rate)
 
