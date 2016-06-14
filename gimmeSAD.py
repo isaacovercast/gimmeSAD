@@ -146,8 +146,10 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria):
             my_pi_islands.append(my_max_pi_island)
 
     print("Got\tmax_dxy - {}\t max_pi_island - {}".format(max_dxy, max_pi_island))
-    max_dxy = np.average(my_dxys)
-    max_pi_island = np.average(my_pi_islands)
+#    max_dxy = np.average(my_dxys)
+#    max_pi_island = np.average(my_pi_islands)
+    max_dxy = np.median(my_dxys)
+    max_pi_island = np.median(my_pi_islands)
     print("Got\tmax_dxy - {}\t max_pi_island - {}".format(max_dxy, max_pi_island))
     ## Make the heatmaps, one for each timeslice
     ## TODO: Should we include all species or just the ones that live to the end?
@@ -168,7 +170,7 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria):
         pis = np.array([(x.dxy, x.pi_island) for x in sp_list])
 
         ## Empty heatmap we'll write into
-        heat = np.zeros((10,10), dtype=np.int)
+        heat = np.zeros((20,20), dtype=np.int)
 
         ## Make the bins
         dxy_bins = np.linspace(0, max_dxy, 20)
@@ -190,15 +192,20 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria):
                 ## Got a value bigger than our current max pi/dxy. ignore.
                 pass
         plt.pcolor(heat,cmap=plt.cm.Reds)
-        plt.xlabel('Dxy')
-        plt.ylabel('Pi_w Island')
-        tix = np.linspace(0, 30, 6)
+        plt.ylabel('Dxy')
+        plt.xlabel('Pi_w Island')
+        #tix = np.linspace(0, 4, 1, endpoint=True)
+        tix = np.arange(0,10)
         plt.colorbar(ticks=tix)
-        plt.xticks(np.arange(len(dxy_bins)), ["{0:.4f}".format(x) for x in dxy_bins], rotation='vertical')
-        plt.yticks(np.arange(len(pi_island_bins)), ["{0:.4f}".format(x) for x in pi_island_bins])
 
+        ## This is the crappy way where the colorbar values change
+        #plt.colorbar()
+        plt.xticks(np.arange(len(pi_island_bins)), ["{0:.4f}".format(x) for x in pi_island_bins], rotation='vertical')
+        plt.yticks(np.arange(len(dxy_bins)), ["{0:.4f}".format(x) for x in dxy_bins])
+
+        ## Pad margins so labels don't get clipped
+        plt.subplots_adjust(bottom=0.15)
         #plt.title(title)
-        print("Doing eq - {}".format(equilibria[i]))
         plt.title(title + "\n%equilibrium = {}".format(equilibria[i]))
         plt.savefig(write+".png")
         plt.close()
@@ -417,7 +424,8 @@ if __name__ == "__main__":
         sys.exit("problem opening output for writing - {}\n{}".format(args.outdir, inst))
 
     ## If you don't specify a recording period, then just record
-    ## 10% of the time
+    ## 10% of the time, or every 100000 generations if you are
+    ## running to equilibrium
     if not args.recording_period:
         if args.nsims < 1:
             args.recording_period = 100000
