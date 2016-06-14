@@ -5,6 +5,7 @@ from ascii_graph import Pyasciigraph
 import matplotlib.pyplot as plt
 from tabulate import tabulate
 import numpy as np
+import subprocess
 import collections
 import argparse
 import datetime
@@ -19,6 +20,7 @@ import implicit_CI
 # pylint: disable=C0103
 # pylint: disable=R0903
 
+## $ python -m cProfile -s cumtime lwn2pocket.py
 
 class gimmeSAD(object):
 
@@ -74,13 +76,6 @@ def heatmap_pi_dxy(data, write="", title=""):
     pis = np.array([(x.dxy, x.pi_island) for x in sp])
     max_pi = max([x[0] for x in pis])
     max_pi_island = max([x[1] for x in pis])
-    #print(max_pi, max_pi_island)
-
-    ## Using max_pi for each iteration makes the axis labels skip
-    ## all around, it's hard to see what's going on
-    ## Hard coding them seems like a dumb solution
-    #max_pi = 0.03
-    #max_pi_island = 0.03
 
     ## Make the bins
     pi_bins = np.linspace(0, max_pi, 10)
@@ -113,15 +108,124 @@ def heatmap_pi_dxy(data, write="", title=""):
     plt.close()
 
 
+def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria=[]):
+    """ Normalize x and y axes for the heatmaps. Only take into account extant species.
+    Inputs are the output directory to write to and an ordered dict 
+    of the species at every recording duration timepoint """
+
+
+    print("Generating pi x dxy heatmap animation")
+    ## Make the output directory for heatmaps inside the top level output directory
+    heat_out = os.path.join(outdir, "normalized_heatmaps")
+    if not os.path.exists(heat_out):
+        os.mkdir(heat_out)
+    
+    ## GET MAX pi and dxy
+    ## Get a list of UUIDs of the extant species at time 0 (present)
+    extant = [x.uuid[0] for x in sp_through_time.values()[-1]]
+    ## find the max_pi and max_dxy for all extant species through all timepoints
+    max_pi_island = 0
+    max_dxy = 0
+    ## For each recorded timeslice
+    my_dxys = []
+    my_pi_islands = []
+    for sp_list in sp_through_time.values():
+        ## Get 
+        pis = np.array([(x.dxy, x.pi_island) for x in sp_list if x.uuid[0] in extant])
+        ## pis will be empty if this timeslice includes no extant species
+        if pis.any():
+            my_max_dxy = max([x[0] for x in pis])
+            my_max_pi_island = max([x[1] for x in pis])
+            if max_dxy < my_max_dxy:
+                max_dxy = my_max_dxy
+            if max_pi_island < my_max_pi_island:
+                max_pi_island = my_max_pi_island
+            my_dxys.append(my_max_dxy)
+            my_pi_islands.append(my_max_pi_island)
+
+    print("Got\tmax_dxy - {}\t max_pi_island - {}".format(max_dxy, max_pi_island))
+    max_dxy = np.average(my_dxys)
+    max_pi_island = np.average(my_pi_islands)
+    print("Got\tmax_dxy - {}\t max_pi_island - {}".format(max_dxy, max_pi_island))
+    ## Make the heatmaps, one for each timeslice
+    ## TODO: Should we include all species or just the ones that live to the end?
+    nslices = len(sp_through_time)
+    ## Create a file index that is large enough so we can create all the heatmap
+    ## files in an order where we can cat them in numerical order w/o too much fuss
+    file_index = 10**len(list(str(nslices)))
+    print(nslices, file_index)
+    for i, sp_list in enumerate(sp_through_time.values()):
+        title = "Time_"+str(file_index+i)
+        write = os.path.join(heat_out, title)
+        #print("Doing", title)
+        
+        ## Get the sumstats for this timeslice
+        ## Only include extant species in plots
+        #pis = np.array([(x.dxy, x.pi_island) for x in sp_list if x.uuid[0] in extant])
+        ## include all species at each timeslice
+        pis = np.array([(x.dxy, x.pi_island) for x in sp_list])
+
+        ## Empty heatmap we'll write into
+        heat = np.zeros((10,10), dtype=np.int)
+
+        ## Make the bins
+        dxy_bins = np.linspace(0, max_dxy, 10)
+        pi_island_bins = np.linspace(0, max_pi_island, 10)
+
+        ## Now you have the bins each value belongs in, but you need to 
+        ## go through and populate the heat matrix
+        for dxy, pi_island in pis:
+            count_dxy = 0
+            count_pi_island = 0
+            try:
+                while not dxy <= dxy_bins[count_dxy]:
+                    count_dxy += 1
+                while not pi_island <= pi_island_bins[count_pi_island]:
+                    count_pi_island += 1
+                ## increment the heatmap point this corresponds to
+                heat[count_dxy][count_pi_island] += 1
+            except Exception as inst:
+                ## Got a value bigger than our current max pi/dxy. ignore.
+                pass
+        plt.pcolor(heat,cmap=plt.cm.Reds)
+        plt.xlabel('Dxy')
+        plt.ylabel('Pi_w Island')
+        tix = np.linspace(0, 30, 6)
+        plt.colorbar(ticks=tix)
+        plt.xticks(np.arange(len(dxy_bins)), ["{0:.4f}".format(x) for x in dxy_bins], rotation='vertical')
+        plt.yticks(np.arange(len(pi_island_bins)), ["{0:.4f}".format(x) for x in pi_island_bins])
+
+        plt.title(title)
+#        plt.title(title + "\n%equilibrium = ".format(equilibria(i)))
+        plt.savefig(write+".png")
+        plt.close()
+
+    ## Do the imagemagick conversion, if possible
+    ## `convert -delay 100 outdir/* anim.gif`
+    cmd = "convert -delay 100 "\
+            + heat_out + "/*.png "\
+            + outdir + "/pi_dxy_anim.gif"
+    try:
+        subprocess.Popen(cmd.split())
+    except Exception as inst:
+        print("Trouble creating pi x dxy animated gif - {}".format(inst))
+
+
 def heatmap_pi_dxy_ascii(data, labels=False):
+    """ This is kind of a toy. It logs to a file in the output directory
+    at recording_period interval, but the axes aren't normalized, so it's
+    more semi-informational. """
     sp = data.get_species()
 
     heat = np.zeros((10,10), dtype=np.int)
 
     pis = np.array([(x.dxy, x.pi_island) for x in sp])
-    max_pi = max([x[0] for x in pis])
-    max_pi_island = max([x[1] for x in pis])
-    #print(max_pi, max_pi_island)
+    ## Set a reasonable default
+    max_pi = max_pi_island = 0.1
+    if pis.any():
+        max_pi = max([x[0] for x in pis])
+        max_pi_island = max([x[1] for x in pis])
+        #print(max_pi, max_pi_island)
 
     ## Make the bins
     pi_bins = np.linspace(0, max_pi, 10)
@@ -323,7 +427,10 @@ if __name__ == "__main__":
     reached_equilib = False
 
     ## Track pop size changes through time
+    ## Also track species sumstats through time so we can normalize the
+    ## heatmap plots
     yoyo = collections.OrderedDict()
+    sp_through_time = collections.OrderedDict()
 
     ## if args.nsims == -1 just run until double equilibrium
     ## or 10e7 steps (effectively forever)
@@ -341,6 +448,7 @@ if __name__ == "__main__":
         ## Set a flag for equilibrium. If you've reached it, flip all the
         ## founder flags back to True and keep running til next equilibrium
         ## then stop
+        percent_equil = 0
         if not i % 10000:
             ## Record abundance of each species through time
             ## Make a counter for the local_community, counts the number of
@@ -372,32 +480,41 @@ if __name__ == "__main__":
         if not i % args.recording_period and not i == 0: 
             ## Every once in a while write out useful info
             data.simulate_seqs()
+            sp_through_time[i] = data.get_species()
             out.write("step {}\n".format(i))
             out.write(heatmap_pi_dxy_ascii(data, labels=False)+"\n")
-            heatmap_pi_dxy(data, os.path.join(args.outdir, "plot-"+str(i)+".png"), title="time = " + str(i))
+            ## Unnormalized axes version of heatmap. Don't use.
+            #heatmap_pi_dxy(data, os.path.join(args.outdir, "plot-"+str(i)+".png"), title="time = " + str(i))
 
     progressbar(100, 100, "  |  {}  steps completed  |  Total runtime   {}".format(i, elapsed))
 
     if not reached_equilib:
         founder_flags = [x[1] for x in data.local_community]
-        print("How close to equilibrium? {}".format(float(founder_flags.count(False))/len(founder_flags)))
+        percent_equil = float(founder_flags.count(False))/len(founder_flags)
+        print("How close to equilibrium? {}".format(percent_equil))
     
+    ## When finished simulate the final set of sequences
+    data.simulate_seqs()
+    sp_through_time[i] = data.get_species()
+    print("Extinction rate - {}".format(data.extinctions/float(data.current_time)))
+    print("Colonization rate - {}".format(data.colonizations/float(data.current_time)))
+
+    ## Print out some informative business
     ## Get all results and write out final sumstats
     abundance_distribution = data.get_abundances(octaves=args.octaves)
     print(plot_abundances_ascii(abundance_distribution))
-
-    write_sizechanges(args.outdir, yoyo)
-
-    data.simulate_seqs()
-
     if not args.quiet:
         print(tabulate_sumstats(data))
 
+    ## Write out to log files
+    write_sizechanges(args.outdir, yoyo)
     with open(os.path.join(args.outdir, "gimmeSAD.out"), "w") as stats:
+        stats.write("Parameters - {}\n".format(args))
+        stats.write("Raw abundance dist - {}\n".format(data.get_abundances(octaves=False)))
+        stats.write("Abundance in octaves - {}\n".format(data.get_abundances(octaves=True)))
         stats.write(plot_abundances_ascii(abundance_distribution))
         stats.write("\n")
         stats.write(tabulate_sumstats(data))
-    print("Extinction rate - {}".format(data.extinctions/float(data.current_time)))
-    print("Colonization rate - {}".format(data.colonizations/float(data.current_time)))
-    #print(heatmap_pi_dxy_ascii(data, labels=True))
 
+    ## Make the normalized pi_x_dxy heatmaps
+    normalized_pi_dxy_heatmaps(args.outdir, sp_through_time)
