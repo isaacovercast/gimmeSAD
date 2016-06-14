@@ -108,7 +108,23 @@ def heatmap_pi_dxy(data, write="", title=""):
     plt.close()
 
 
-def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria):
+## Doesn't exactly work right, it'll prune extant species but there's 
+## a good chance an extant species has colonized, then gone extinct,
+## then recolonized (which is allowable), but it fucks up the plotting
+def prune_extant(sp_through_time):
+    """ This is fucked because at each recording period the species
+    get new names generated for them, even though the UUID is the same """
+
+    ## Get the uuids of all extant species
+    extant = [x.uuid[0] for x in sp_through_time.values()[-1]]
+    
+    for time, sp_list in sp_through_time.items(): 
+        sp_through_time[time] = np.array([x for x in sp_list if x.uuid[0] in extant])
+
+    return sp_through_time
+
+
+def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, only_extant=True):
     """ Normalize x and y axes for the heatmaps. Only take into account extant species.
     Inputs are the output directory to write to and an ordered dict 
     of the species at every recording duration timepoint """
@@ -120,7 +136,10 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria):
         os.mkdir(heat_out)
 
     equilibria = equilibria.values()
-    print(equilibria)
+
+    ## If you only want to see extant species then prune all the extinct ones
+    if only_extant:
+        sp_through_time = prune_extant(sp_through_time)
 
     ## GET MAX pi and dxy
     ## Get a list of UUIDs of the extant species at time 0 (present)
@@ -157,7 +176,16 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria):
     ## Create a file index that is large enough so we can create all the heatmap
     ## files in an order where we can cat them in numerical order w/o too much fuss
     file_index = 10**len(list(str(nslices)))
-    print(nslices, file_index)
+
+    ## Make the throwaway plot to get the colorbar
+    cbar_min, cbar_max = (0, 5)
+    step = 1
+    Z = [[0,0],[0,0]]
+    levels = range(cbar_min, cbar_max+step, step)
+    my_colorbar = plt.contourf(Z, levels, cmap=plt.cm.Reds)
+    plt.clf()
+
+
     for i, sp_list in enumerate(sp_through_time.values()):
         title = "Time_"+str(file_index+i)
         write = os.path.join(heat_out, title)
@@ -194,10 +222,12 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria):
         plt.pcolor(heat,cmap=plt.cm.Reds)
         plt.ylabel('Dxy')
         plt.xlabel('Pi_w Island')
-        #tix = np.linspace(0, 4, 1, endpoint=True)
-        tix = np.arange(0,10)
-        plt.colorbar(ticks=tix)
 
+        ## Crap
+        #tix = np.arange(0,10)
+        #plt.colorbar(ticks=tix)
+
+        plt.colorbar(my_colorbar)
         ## This is the crappy way where the colorbar values change
         #plt.colorbar()
         plt.xticks(np.arange(len(pi_island_bins)), ["{0:.4f}".format(x) for x in pi_island_bins], rotation='vertical')
@@ -531,5 +561,5 @@ if __name__ == "__main__":
         stats.write(tabulate_sumstats(data))
 
     ## Make the normalized pi_x_dxy heatmaps
-    normalized_pi_dxy_heatmaps(args.outdir, sp_through_time, equilibria)
+    normalized_pi_dxy_heatmaps(args.outdir, sp_through_time, equilibria, prune=False)
 
