@@ -108,18 +108,20 @@ def heatmap_pi_dxy(data, write="", title=""):
     plt.close()
 
 
-def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria=[]):
+def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria):
     """ Normalize x and y axes for the heatmaps. Only take into account extant species.
     Inputs are the output directory to write to and an ordered dict 
     of the species at every recording duration timepoint """
-
 
     print("Generating pi x dxy heatmap animation")
     ## Make the output directory for heatmaps inside the top level output directory
     heat_out = os.path.join(outdir, "normalized_heatmaps")
     if not os.path.exists(heat_out):
         os.mkdir(heat_out)
-    
+
+    equilibria = equilibria.values()
+    print(equilibria)
+
     ## GET MAX pi and dxy
     ## Get a list of UUIDs of the extant species at time 0 (present)
     extant = [x.uuid[0] for x in sp_through_time.values()[-1]]
@@ -169,8 +171,8 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria=[]):
         heat = np.zeros((10,10), dtype=np.int)
 
         ## Make the bins
-        dxy_bins = np.linspace(0, max_dxy, 10)
-        pi_island_bins = np.linspace(0, max_pi_island, 10)
+        dxy_bins = np.linspace(0, max_dxy, 20)
+        pi_island_bins = np.linspace(0, max_pi_island, 20)
 
         ## Now you have the bins each value belongs in, but you need to 
         ## go through and populate the heat matrix
@@ -195,8 +197,9 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria=[]):
         plt.xticks(np.arange(len(dxy_bins)), ["{0:.4f}".format(x) for x in dxy_bins], rotation='vertical')
         plt.yticks(np.arange(len(pi_island_bins)), ["{0:.4f}".format(x) for x in pi_island_bins])
 
-        plt.title(title)
-#        plt.title(title + "\n%equilibrium = ".format(equilibria(i)))
+        #plt.title(title)
+        print("Doing eq - {}".format(equilibria[i]))
+        plt.title(title + "\n%equilibrium = {}".format(equilibria[i]))
         plt.savefig(write+".png")
         plt.close()
 
@@ -431,6 +434,7 @@ if __name__ == "__main__":
     ## heatmap plots
     yoyo = collections.OrderedDict()
     sp_through_time = collections.OrderedDict()
+    equilibria = collections.OrderedDict()
 
     ## if args.nsims == -1 just run until double equilibrium
     ## or 10e7 steps (effectively forever)
@@ -481,6 +485,7 @@ if __name__ == "__main__":
             ## Every once in a while write out useful info
             data.simulate_seqs()
             sp_through_time[i] = data.get_species()
+            equilibria[i] = percent_equil
             out.write("step {}\n".format(i))
             out.write(heatmap_pi_dxy_ascii(data, labels=False)+"\n")
             ## Unnormalized axes version of heatmap. Don't use.
@@ -496,6 +501,7 @@ if __name__ == "__main__":
     ## When finished simulate the final set of sequences
     data.simulate_seqs()
     sp_through_time[i] = data.get_species()
+    equilibria[i] = percent_equil
     print("Extinction rate - {}".format(data.extinctions/float(data.current_time)))
     print("Colonization rate - {}".format(data.colonizations/float(data.current_time)))
 
@@ -517,4 +523,5 @@ if __name__ == "__main__":
         stats.write(tabulate_sumstats(data))
 
     ## Make the normalized pi_x_dxy heatmaps
-    normalized_pi_dxy_heatmaps(args.outdir, sp_through_time)
+    normalized_pi_dxy_heatmaps(args.outdir, sp_through_time, equilibria)
+
