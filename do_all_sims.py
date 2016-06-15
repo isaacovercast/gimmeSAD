@@ -14,7 +14,7 @@ if __name__ == "__main__":
         os.mkdir(SIM_DIRECTORY)
 
     col_rates = [0.001, 0.01]
-    k_vals = [1000, 10000, 100000]
+    k_vals = [1000, 10000]
 
     for i in range(0, 1):
         for c in col_rates:

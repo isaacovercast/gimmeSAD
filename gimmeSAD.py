@@ -124,6 +124,10 @@ def prune_extant(sp_through_time):
     return sp_through_time
 
 
+def plot_rank_abundance_through_time(outdir, sp_through_time, equilibria):
+    pass
+
+
 def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, only_extant=True):
     """ Normalize x and y axes for the heatmaps. Only take into account extant species.
     Inputs are the output directory to write to and an ordered dict 
@@ -242,7 +246,16 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, only_extant=
 
     ## Do the imagemagick conversion, if possible
     ## `convert -delay 100 outdir/* anim.gif`
-    cmd = "convert -delay 100 "\
+    ## Define the total time to be 10 seconds, total available
+    ## timeslots is * 100 bcz convert flag is in 1/100 seconds
+    tot_time = 10 * 100
+    if i > tot_time:
+        delay = 1
+    else:
+        delay = int(1000./i)
+    ## Default half second intervals
+    delay = 50
+    cmd = "convert -delay {} ".format(delay)\
             + heat_out + "/*.png "\
             + outdir + "/pi_dxy_anim.gif"
     try:
@@ -561,5 +574,5 @@ if __name__ == "__main__":
         stats.write(tabulate_sumstats(data))
 
     ## Make the normalized pi_x_dxy heatmaps
-    normalized_pi_dxy_heatmaps(args.outdir, sp_through_time, equilibria, prune=False)
-
+    normalized_pi_dxy_heatmaps(args.outdir, sp_through_time, equilibria, only_extant=False)
+    plot_rank_abundance_through_time(args.outdir, sp_through_time, equilibria)
