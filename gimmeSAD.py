@@ -31,6 +31,15 @@ class gimmeSAD(object):
         return "<gimmeSAD {}>".format(self.name)
 
 
+## quicksort stolen from the internet
+def qsort(arr): 
+     if len(arr) <= 1:
+          return arr
+     else:
+          return qsort([x for x in arr[1:] if x.abundance<arr[0].abundance])\
+                    + [arr[0]] + qsort([x for x in arr[1:] if x.abundance>=arr[0].abundance])
+
+
 def plot_abundances_ascii(abundance_distribution):
     """
     Plot the abundance distribution as returned by the get_abundances
@@ -58,7 +67,7 @@ def tabulate_sumstats(data):
     #print("Species colonization times (in generations):\n{}".format([x.colonization_time for x in sp]))
     #print("Species Ne:\n{}".format([x.Ne for x in sp]))
     headers = ["Species Name", "Col time", "Loc Abund", "Meta Abund", "pi", "pi_net", "Dxy",  "S", "S_island", "pi_island", "S_meta", "pi_meta"]
-    acc = [[s.name, s.colonization_time, s.abundance, s.meta_abundance, s.pi, s.pi_net, s.dxy, s.S, s.S_island, s.pi_island, s.S_meta, s.pi_meta] for s in sp]
+    acc = [[s.name, s.colonization_time, s.abundance, int(s.meta_abundance), s.pi, s.pi_net, s.dxy, s.S, s.S_island, s.pi_island, s.S_meta, s.pi_meta] for s in sp]
     return tabulate(acc, headers, floatfmt=".4f")
 
 
@@ -151,11 +160,28 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, only_extant=
     ## find the max_pi and max_dxy for all extant species through all timepoints
     max_pi_island = 0
     max_dxy = 0
+    
+    ## Also find the max number of species and the max
+    ## abundance so the rank abundance plot looks sensible
+    max_abundance = 0
+    max_n_species = 0
+
     ## For each recorded timeslice
     my_dxys = []
     my_pi_islands = []
+    
+    ## Normalization routines
     for sp_list in sp_through_time.values():
-        ## Get 
+        ## Get the max number of species ever present
+        if len(sp_list) > max_n_species:
+            max_n_species = len(sp_list)
+
+        ## Get max abundance
+        for sp in sp_list:
+            if sp.abundance > max_abundance:
+                max_abundance = sp.abundance
+
+        ## Get max pi and max dxy
         pis = np.array([(x.dxy, x.pi_island) for x in sp_list if x.uuid[0] in extant])
         ## pis will be empty if this timeslice includes no extant species
         if pis.any():
@@ -223,17 +249,18 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, only_extant=
             except Exception as inst:
                 ## Got a value bigger than our current max pi/dxy. ignore.
                 pass
-        plt.pcolor(heat,cmap=plt.cm.Reds)
-        plt.ylabel('Dxy')
-        plt.xlabel('Pi_w Island')
 
-        ## Crap
-        #tix = np.arange(0,10)
-        #plt.colorbar(ticks=tix)
+        ## Make the Plot
+        fig = plt.figure(figsize=(12,5))
+        plt.subplot(121)
+
+
+        ## Make the pi x dxy plot
+        plt.pcolor(heat,cmap=plt.cm.Reds)
+        plt.ylabel('Pairwise differences between \nisland and metacommunity (Dxy)')
+        plt.xlabel('Within island genetic diversity (pi)')
 
         plt.colorbar(my_colorbar)
-        ## This is the crappy way where the colorbar values change
-        #plt.colorbar()
         plt.xticks(np.arange(len(pi_island_bins)), ["{0:.4f}".format(x) for x in pi_island_bins], rotation='vertical')
         plt.yticks(np.arange(len(dxy_bins)), ["{0:.4f}".format(x) for x in dxy_bins])
 
@@ -241,6 +268,21 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, only_extant=
         plt.subplots_adjust(bottom=0.15)
         #plt.title(title)
         plt.title(title + "\n%equilibrium = {}".format(equilibria[i]))
+
+        ## Make the rank abundance plot
+        plt.subplot(122)
+        species = qsort(sp_list)
+        species = species[::-1]
+        x = np.arange(0,len(species))
+        y = [np.log10(xx.abundance/1000) for xx in species]
+        plt.scatter(x, y)
+        plt.xlim(0, max_n_species)
+        plt.ylim(0, int(np.log10(max_abundance/1000)))
+        plt.ylabel("Abundance (log10)")
+        plt.xlabel("Rank")
+    
+        plt.tight_layout()
+
         plt.savefig(write+".png")
         plt.close()
 
