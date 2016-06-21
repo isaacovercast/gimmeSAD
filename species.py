@@ -15,7 +15,8 @@ class species(object):
     def __init__(self, UUID = "", abundance = 1, meta_abundance = 1, colonization_time = 0):
         self.name = names.names().get_name()
         self.uuid = UUID
-        self.abundance = abundance * 1000
+        self.abundance = abundance
+        self.local_Ne = self.abundance * 1000
         self.meta_abundance = meta_abundance / 100.
         #self.colonization_time = np.log(colonization_time)
         self.colonization_time = colonization_time
@@ -27,7 +28,7 @@ class species(object):
         self.meta_sample_size = 10
 
         ## Need to calculate the growth rate
-        self.r_island = -np.log(10./self.abundance)/self.colonization_time
+        self.r_island = -np.log(10./self.local_Ne)/self.colonization_time
         #self.r_island = 0
 
         ## Stats
@@ -50,7 +51,7 @@ class species(object):
             self.Ne = 100
         
         island_pop = msprime.PopulationConfiguration(sample_size=self.island_sample_size,\
-                                                    initial_size=self.abundance,
+                                                    initial_size=self.local_Ne,
                                                     growth_rate=self.r_island)
         
         meta_pop = msprime.PopulationConfiguration(sample_size=self.meta_sample_size, initial_size=self.meta_abundance)

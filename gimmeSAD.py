@@ -11,6 +11,7 @@ import argparse
 import datetime
 import shutil
 import time
+import math
 import sys
 import os
 
@@ -38,6 +39,43 @@ def qsort(arr):
      else:
           return qsort([x for x in arr[1:] if x.abundance<arr[0].abundance])\
                     + [arr[0]] + qsort([x for x in arr[1:] if x.abundance>=arr[0].abundance])
+
+
+def abundances_from_sp_list(species, octaves=False):
+    ## Make a counter for the local_community, counts the number of
+    ## individuals w/in each species
+    abundances = collections.Counter([x.abundance for x in species])
+    ## Get rid of any 0 abundances cuz it fsck us up.
+    try:
+        abundances.pop(0)
+    except KeyError:
+        pass
+
+    abundance_distribution = collections.OrderedDict()
+    all_abund = abundances.keys()
+    max_abund = max(all_abund)
+    for ab_class in np.arange(1, max_abund+1):
+        if ab_class in all_abund:
+            abundance_distribution[ab_class] = abundances[ab_class]
+        else:
+            abundance_distribution[ab_class] = 0
+
+    if octaves:
+        dist_in_octaves = collections.OrderedDict()
+        min_oct = 1
+        max_oct = 2
+        while max_oct/2 < len(abundance_distribution):
+            count = 0
+            ## Here `i` is the abundance class and
+            ## `j` is the count for that class
+            for i, j in abundance_distribution.items():
+                if (i < max_oct) and (i >= min_oct):
+                    count += j
+            dist_in_octaves[min_oct] = count
+            min_oct = min_oct * 2
+            max_oct = max_oct * 2
+        abundance_distribution = dist_in_octaves
+    return abundance_distribution
 
 
 def plot_abundances_ascii(abundance_distribution):
@@ -133,8 +171,125 @@ def prune_extant(sp_through_time):
     return sp_through_time
 
 
-def plot_rank_abundance_through_time(outdir, sp_through_time, equilibria):
-    pass
+def plot_rank_abundance_through_time(outdir, sp_through_time, equilibria, only_extant=False):
+    import pandas as pd
+    import seaborn
+    seaborn.set
+    seaborn.set_style(style="white")
+
+    print("Generating abunance distributions through time")
+    ## Make the output directory for heatmaps inside the top level output directory
+    abund_out = os.path.join(outdir, "abundance_plots")
+    if not os.path.exists(abund_out):
+        os.mkdir(abund_out)
+
+    equilibria = equilibria.values()
+
+    ## If you only want to see extant species then prune all the extinct ones
+    if only_extant:
+        sp_through_time = prune_extant(sp_through_time)
+
+    ## GET MAX values for abundance and num species so we can normalize the plot aces
+    max_n_species = max([len(x) for x in sp_through_time.values()])
+    max_abundance = max([max([y.abundance for y in sp]) for sp in sp_through_time.values()])
+    print("Got\tmax_n_species - {}\t max_abundance - {}".format(max_n_species, max_abundance))
+
+    ## Get max values for abundance class count and abundance octave
+    max_octave = 0
+    max_class_count = 0
+    max_n_bins = 0
+    octave_bin_labels = []
+    for sp in sp_through_time.values():
+        abund = abundances_from_sp_list(sp, octaves=True)
+        octave = max(abund.keys())
+        class_count = max(abund.values())
+        if octave > max_octave:
+            max_octave = octave
+        if class_count > max_class_count:
+            max_class_count = class_count
+        if len(abund.keys()) > max_n_bins:
+            max_n_bins = len(abund.keys())
+            octave_bin_labels = abund.keys()
+    print("Got\tmax_octave - {}\t max_class_count - {}".format(max_octave, max_class_count))
+
+    ## Get a list of UUIDs of the extant species at time 0 (present)
+    extant = [x.uuid[0] for x in sp_through_time.values()[-1]]
+    
+    ## Make the abundance plots, one for each timeslice
+    ## TODO: Should we include all species or just the ones that live to the end?
+    nslices = len(sp_through_time)
+    ## Create a file index that is large enough so we can create all the abundance
+    ## files in an order where we can cat them in numerical order w/o too much fuss
+    file_index = 10**len(list(str(nslices)))
+
+    for i, species in enumerate(sp_through_time.values()):
+        title = "Time_"+str(file_index+i)
+        write = os.path.join(abund_out, title)
+        ## TODO: Put progress bars here
+        #print("Doing", title)
+        
+
+        ## Make the Plot
+        fig = plt.figure(figsize=(12,5))
+        plt.suptitle("%equilibrium = {}".format(equilibria[i]), fontsize=25)
+
+        ## Make the rank abundance distribution
+        plt.subplot(121)
+        species = qsort(species)
+        species = species[::-1]
+        x = np.arange(0,len(species))
+        y = [np.log10(xx.abundance) for xx in species]
+        plt.scatter(x, y, color="blue", s=100)
+        plt.xlim(0, max_n_species)
+        plt.ylim(0, int(math.ceil(np.log10(max_abundance))))
+        plt.ylabel("Abundance (log10)", fontsize=25)
+        plt.xlabel("Rank", fontsize=25)
+
+        ## Make the SAD subplot
+        abund = abundances_from_sp_list(species, octaves=True)
+        ax1 = plt.subplot(122)
+        ab_class, count = zip(*abund.items())
+        print(ab_class, count)
+        df = pd.DataFrame([x for x in count], index = [str(x) for x in ab_class])
+        i = -1
+        ## This is hax to make seaborn print out the x-axis labels
+        ## If the len of the dataframe is < the max len of any df
+        ## we print, even though we're trying to set the octave_bin_labels
+        ## it just won't print them. It just looks weird w/o this.
+        while len(df) < max_n_bins:
+            df.loc[i] = 0
+            i -= 1
+        bar = df.plot(kind = "bar", legend = False, ax = ax1)
+        ## Otherwise 1st bar is truncated
+        plt.xlim([0.5, max_n_bins]) 
+        ax1.set_xticklabels([str(x) for x in octave_bin_labels])
+        plt.setp(bar.get_xticklabels(), rotation=0)
+        plt.ylim(0, max_class_count)
+        plt.xlabel("Abundance Class", fontsize=25)
+        plt.ylabel("Count", fontsize=25)
+        
+        plt.savefig(write+".png")
+        plt.close()
+
+    ## Do the imagemagick conversion, if possible
+    ## `convert -delay 100 outdir/* anim.gif`
+    ## Define the total time to be 10 seconds, total available
+    ## timeslots is * 100 bcz convert flag is in 1/100 seconds
+    tot_time = 10 * 100
+    if i > tot_time:
+        delay = 1
+    else:
+        delay = int(1000./i)
+    ## Default half second intervals
+    delay = 50
+    cmd = "convert -delay {} ".format(delay)\
+            + abund_out + "/*.png "\
+            + outdir + "/abundances_through_time.gif"
+    try:
+        subprocess.Popen(cmd.split())
+    except Exception as inst:
+        print("Trouble creating abundances through time animated gif - {}".format(inst))
+        print("You probably don't have imagemagick installed")
 
 
 def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, only_extant=True):
@@ -274,10 +429,10 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, only_extant=
         species = qsort(sp_list)
         species = species[::-1]
         x = np.arange(0,len(species))
-        y = [np.log10(xx.abundance/1000) for xx in species]
+        y = [np.log10(xx.abundance) for xx in species]
         plt.scatter(x, y)
         plt.xlim(0, max_n_species)
-        plt.ylim(0, int(np.log10(max_abundance/1000)))
+        plt.ylim(0, int(np.log10(max_abundance)))
         plt.ylabel("Abundance (log10)")
         plt.xlabel("Rank")
     
@@ -304,6 +459,7 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, only_extant=
         subprocess.Popen(cmd.split())
     except Exception as inst:
         print("Trouble creating pi x dxy animated gif - {}".format(inst))
+        print("You probably don't have imagemagick installed")
 
 
 def heatmap_pi_dxy_ascii(data, labels=False):
@@ -616,5 +772,5 @@ if __name__ == "__main__":
         stats.write(tabulate_sumstats(data))
 
     ## Make the normalized pi_x_dxy heatmaps
-    normalized_pi_dxy_heatmaps(args.outdir, sp_through_time, equilibria, only_extant=False)
     plot_rank_abundance_through_time(args.outdir, sp_through_time, equilibria)
+    normalized_pi_dxy_heatmaps(args.outdir, sp_through_time, equilibria, only_extant=False)
