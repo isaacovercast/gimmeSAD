@@ -190,28 +190,9 @@ def plot_rank_abundance_through_time(outdir, sp_through_time, equilibria, only_e
     if only_extant:
         sp_through_time = prune_extant(sp_through_time)
 
-    ## GET MAX values for abundance and num species so we can normalize the plot aces
-    max_n_species = max([len(x) for x in sp_through_time.values()])
-    max_abundance = max([max([y.abundance for y in sp]) for sp in sp_through_time.values()])
-    print("Got\tmax_n_species - {}\t max_abundance - {}".format(max_n_species, max_abundance))
-
-    ## Get max values for abundance class count and abundance octave
-    max_octave = 0
-    max_class_count = 0
-    max_n_bins = 0
-    octave_bin_labels = []
-    for sp in sp_through_time.values():
-        abund = abundances_from_sp_list(sp, octaves=True)
-        octave = max(abund.keys())
-        class_count = max(abund.values())
-        if octave > max_octave:
-            max_octave = octave
-        if class_count > max_class_count:
-            max_class_count = class_count
-        if len(abund.keys()) > max_n_bins:
-            max_n_bins = len(abund.keys())
-            octave_bin_labels = abund.keys()
-    print("Got\tmax_octave - {}\t max_class_count - {}".format(max_octave, max_class_count))
+    max_n_species, max_abundance, max_octave, max_class_count, max_n_bins, octave_bin_labels = prep_normalized_plots(sp_through_time)
+    print("max_n_species - {}\nmax_abundance - {}\nmax_octave - {}\nmax_class_count - {}\nmax_n_bins - {}\noctave_bin_labels - {}".format(
+        max_n_species, max_abundance, max_octave, max_class_count, max_n_bins, octave_bin_labels))
 
     ## Get a list of UUIDs of the extant species at time 0 (present)
     extant = [x.uuid[0] for x in sp_through_time.values()[-1]]
@@ -273,6 +254,41 @@ def plot_rank_abundance_through_time(outdir, sp_through_time, equilibria, only_e
         plt.savefig(write+".png")
         plt.close()
 
+    make_animated_gif(abund_out,\
+                        os.path.join(outdir, "abundances_through_time.gif"))
+
+
+def prep_normalized_plots(sp_through_time):
+    ## GET MAX values for abundance and num species so we can normalize the plot axes
+    max_n_species = max([len(x) for x in sp_through_time.values()])
+    max_abundance = max([max([y.abundance for y in sp]) for sp in sp_through_time.values()])
+    print("Got\tmax_n_species - {}\t max_abundance - {}".format(max_n_species, max_abundance))
+
+    ## Get max values for abundance class count and abundance octave
+    max_octave = 0
+    max_class_count = 0
+    max_n_bins = 0
+    octave_bin_labels = []
+    for sp in sp_through_time.values():
+        abund = abundances_from_sp_list(sp, octaves=True)
+        octave = max(abund.keys())
+        class_count = max(abund.values())
+        if octave > max_octave:
+            max_octave = octave
+        if class_count > max_class_count:
+            max_class_count = class_count
+        if len(abund.keys()) > max_n_bins:
+            max_n_bins = len(abund.keys())
+            octave_bin_labels = abund.keys()
+
+    return max_n_species, max_abundance, max_octave, max_class_count, max_n_bins, octave_bin_labels
+
+
+def make_animated_gif(datadir, outfile):
+    """ This function will take all png files in a directory and make them
+    into an animated gif. The inputs are the directory with all the images
+    and the full path including filename of the file to write out"""
+
     ## Do the imagemagick conversion, if possible
     ## `convert -delay 100 outdir/* anim.gif`
     ## Define the total time to be 10 seconds, total available
@@ -285,8 +301,8 @@ def plot_rank_abundance_through_time(outdir, sp_through_time, equilibria, only_e
     ## Default half second intervals
     delay = 50
     cmd = "convert -delay {} ".format(delay)\
-            + abund_out + "/*.png "\
-            + outdir + "/abundances_through_time.gif"
+            + datadir + "/*.png "\
+            + outfile
     try:
         subprocess.Popen(cmd.split())
     except Exception as inst:
@@ -318,25 +334,16 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, only_extant=
     max_pi_island = 0
     max_dxy = 0
     
-    ## Also find the max number of species and the max
-    ## abundance so the rank abundance plot looks sensible
-    max_abundance = 0
-    max_n_species = 0
-
     ## For each recorded timeslice
     my_dxys = []
     my_pi_islands = []
+
+    ## Get variables we care about
+    max_n_species, max_abundance, _, _, _, _ = prep_normalized_plots(sp_through_time)
+    print("max_n_species - {}\nmax_abundance - {}".format(max_n_species, max_abundance))
     
     ## Normalization routines
     for sp_list in sp_through_time.values():
-        ## Get the max number of species ever present
-        if len(sp_list) > max_n_species:
-            max_n_species = len(sp_list)
-
-        ## Get max abundance
-        for sp in sp_list:
-            if sp.abundance > max_abundance:
-                max_abundance = sp.abundance
 
         ## Get max pi and max dxy
         pis = np.array([(x.dxy, x.pi_island) for x in sp_list if x.uuid[0] in extant])
@@ -351,7 +358,6 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, only_extant=
             my_dxys.append(my_max_dxy)
             my_pi_islands.append(my_max_pi_island)
 
-    print("Got\tmax_dxy - {}\t max_pi_island - {}".format(max_dxy, max_pi_island))
 #    max_dxy = np.average(my_dxys)
 #    max_pi_island = np.average(my_pi_islands)
     max_dxy = np.median(my_dxys)
@@ -409,6 +415,7 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, only_extant=
 
         ## Make the Plot
         fig = plt.figure(figsize=(12,5))
+        plt.suptitle("%equilibrium = {}".format(equilibria[i]), fontsize=25)
         plt.subplot(121)
 
 
@@ -424,7 +431,6 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, only_extant=
         ## Pad margins so labels don't get clipped
         plt.subplots_adjust(bottom=0.15)
         #plt.title(title)
-        plt.suptitle("%equilibrium = {}".format(equilibria[i]), fontsize=25)
 
         ## Make the rank abundance plot
         plt.subplot(122)
@@ -434,34 +440,17 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, only_extant=
         y = [np.log10(xx.abundance) for xx in species]
         plt.scatter(x, y, color="blue", s=100)
         plt.xlim(0, max_n_species)
-        plt.ylim(0, int(np.log10(max_abundance)))
+        plt.ylim(0, int(math.ceil(np.log10(max_abundance))))
         plt.ylabel("Abundance (log10)", fontsize=25)
         plt.xlabel("Rank", fontsize=25)
     
-        plt.tight_layout()
+#        plt.tight_layout()
 
         plt.savefig(write+".png")
         plt.close()
 
-    ## Do the imagemagick conversion, if possible
-    ## `convert -delay 100 outdir/* anim.gif`
-    ## Define the total time to be 10 seconds, total available
-    ## timeslots is * 100 bcz convert flag is in 1/100 seconds
-    tot_time = 10 * 100
-    if i > tot_time:
-        delay = 1
-    else:
-        delay = int(1000./i)
-    ## Default half second intervals
-    delay = 50
-    cmd = "convert -delay {} ".format(delay)\
-            + heat_out + "/*.png "\
-            + outdir + "/pi_dxy_anim.gif"
-    try:
-        subprocess.Popen(cmd.split())
-    except Exception as inst:
-        print("Trouble creating pi x dxy animated gif - {}".format(inst))
-        print("You probably don't have imagemagick installed")
+    make_animated_gif(heat_out,\
+                        os.path.join(outdir, "pi_dxy_anim.gif"))
 
 
 def heatmap_pi_dxy_ascii(data, labels=False):
