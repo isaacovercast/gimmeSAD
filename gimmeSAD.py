@@ -21,7 +21,8 @@ import implicit_CI
 # pylint: disable=C0103
 # pylint: disable=R0903
 
-## $ python -m cProfile -s cumtime lwn2pocket.py
+## The fuckin profiling function I always forget:
+## python -m cProfile -s cumtime gimmeSAD.py -n 0 -k 1000 -o /tmp/wat -f > res.txt
 
 class gimmeSAD(object):
 
@@ -268,6 +269,7 @@ def plot_rank_abundance_through_time(outdir, sp_through_time, equilibria, only_e
         plt.xlabel("Abundance Class", fontsize=25)
         plt.ylabel("Count", fontsize=25)
         
+        plt.subplots_adjust(bottom=0.15)
         plt.savefig(write+".png")
         plt.close()
 
@@ -367,7 +369,7 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, only_extant=
     step = 1
     Z = [[0,0],[0,0]]
     levels = range(cbar_min, cbar_max+step, step)
-    my_colorbar = plt.contourf(Z, levels, cmap=plt.cm.Reds)
+    my_colorbar = plt.contourf(Z, levels, cmap=plt.cm.Blues)
     plt.clf()
 
 
@@ -411,9 +413,9 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, only_extant=
 
 
         ## Make the pi x dxy plot
-        plt.pcolor(heat,cmap=plt.cm.Reds)
-        plt.ylabel('Pairwise differences between \nisland and metacommunity (Dxy)')
-        plt.xlabel('Within island genetic diversity (pi)')
+        plt.pcolor(heat,cmap=plt.cm.Blues)
+        plt.ylabel('Pairwise differences between \nisland and metacommunity (Dxy)', fontsize=20)
+        plt.xlabel('Within island genetic diversity (pi)', fontsize=20)
 
         plt.colorbar(my_colorbar)
         plt.xticks(np.arange(len(pi_island_bins)), ["{0:.4f}".format(x) for x in pi_island_bins], rotation='vertical')
@@ -422,7 +424,7 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, only_extant=
         ## Pad margins so labels don't get clipped
         plt.subplots_adjust(bottom=0.15)
         #plt.title(title)
-        plt.title(title + "\n%equilibrium = {}".format(equilibria[i]))
+        plt.suptitle("%equilibrium = {}".format(equilibria[i]), fontsize=25)
 
         ## Make the rank abundance plot
         plt.subplot(122)
@@ -430,11 +432,11 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, only_extant=
         species = species[::-1]
         x = np.arange(0,len(species))
         y = [np.log10(xx.abundance) for xx in species]
-        plt.scatter(x, y)
+        plt.scatter(x, y, color="blue", s=100)
         plt.xlim(0, max_n_species)
         plt.ylim(0, int(np.log10(max_abundance)))
-        plt.ylabel("Abundance (log10)")
-        plt.xlabel("Rank")
+        plt.ylabel("Abundance (log10)", fontsize=25)
+        plt.xlabel("Rank", fontsize=25)
     
         plt.tight_layout()
 
