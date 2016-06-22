@@ -172,7 +172,7 @@ def prune_extant(sp_through_time):
     return sp_through_time
 
 
-def plot_rank_abundance_through_time(outdir, sp_through_time, equilibria, only_extant=False):
+def plot_rank_abundance_through_time(outdir, sp_through_time, equilibria, only_extant=False, verbose=False):
     import pandas as pd
     import seaborn
     seaborn.set
@@ -191,8 +191,11 @@ def plot_rank_abundance_through_time(outdir, sp_through_time, equilibria, only_e
         sp_through_time = prune_extant(sp_through_time)
 
     max_n_species, max_abundance, max_octave, max_class_count, max_n_bins, octave_bin_labels = prep_normalized_plots(sp_through_time)
-    print("max_n_species - {}\nmax_abundance - {}\nmax_octave - {}\nmax_class_count - {}\nmax_n_bins - {}\noctave_bin_labels - {}".format(
-        max_n_species, max_abundance, max_octave, max_class_count, max_n_bins, octave_bin_labels))
+    if verbose:
+        print("info:\n\nmax_n_species - {}\nmax_abundance - {}\nmax_octave - {}\nmax_class_count - {}"\
+                + "\nmax_n_bins - {}\noctave_bin_labels - {}\n".format(\
+                max_n_species, max_abundance, max_octave, max_class_count,\
+                max_n_bins, octave_bin_labels))
 
     ## Get a list of UUIDs of the extant species at time 0 (present)
     extant = [x.uuid[0] for x in sp_through_time.values()[-1]]
@@ -204,7 +207,10 @@ def plot_rank_abundance_through_time(outdir, sp_through_time, equilibria, only_e
     ## files in an order where we can cat them in numerical order w/o too much fuss
     file_index = 10**len(list(str(nslices)))
 
+    tot_plots = len(sp_through_time.values())
     for i, species in enumerate(sp_through_time.values()):
+        progressbar(tot_plots, i+1)
+
         title = "Time_"+str(file_index+i)
         write = os.path.join(abund_out, title)
         ## TODO: Put progress bars here
@@ -216,7 +222,7 @@ def plot_rank_abundance_through_time(outdir, sp_through_time, equilibria, only_e
         plt.suptitle("%equilibrium = {}".format(equilibria[i]), fontsize=25)
 
         ## Make the rank abundance distribution
-        plt.subplot(121)
+        plt.subplot(122)
         species = qsort(species)
         species = species[::-1]
         x = np.arange(0,len(species))
@@ -229,9 +235,10 @@ def plot_rank_abundance_through_time(outdir, sp_through_time, equilibria, only_e
 
         ## Make the SAD subplot
         abund = abundances_from_sp_list(species, octaves=True)
-        ax1 = plt.subplot(122)
+        ax1 = plt.subplot(121)
         ab_class, count = zip(*abund.items())
-        print(ab_class, count)
+        if verbose:
+            print(ab_class, count)
         df = pd.DataFrame([x for x in count], index = [str(x) for x in ab_class])
         i = -1
         ## This is hax to make seaborn print out the x-axis labels
@@ -254,6 +261,7 @@ def plot_rank_abundance_through_time(outdir, sp_through_time, equilibria, only_e
         plt.savefig(write+".png")
         plt.close()
 
+    progressbar(100, 100, "\n")
     make_animated_gif(abund_out,\
                         os.path.join(outdir, "abundances_through_time.gif"))
 
@@ -308,9 +316,44 @@ def make_animated_gif(datadir, outfile):
         print("Trouble creating abundances through time animated gif - {}".format(inst))
         print("You probably don't have imagemagick installed")
 
+def get_max_heat_bin(sp_through_time, max_pi_island, max_dxy):
+    max_heat_bin = 0
 
+    for sp_list in sp_through_time.values():
+        ## Get the sumstats for this timeslice
+        ## Only include extant species in plots
+        #pis = np.array([(x.dxy, x.pi_island) for x in sp_list if x.uuid[0] in extant])
+        ## include all species at each timeslice
+        pis = np.array([(x.dxy, x.pi_island) for x in sp_list])
 
-def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, one_d=False, only_extant=False):
+        ## Empty heatmap we'll write into
+        heat = np.zeros((20,20), dtype=np.int)
+
+        ## Make the bins
+        dxy_bins = np.linspace(0, max_dxy, 20, endpoint=True)
+        pi_island_bins = np.linspace(0, max_pi_island, 20, endpoint=True)
+
+        ## Now you have the bins each value belongs in, but you need to 
+        ## go through and populate the heat matrix
+        for dxy, pi_island in pis:
+            count_dxy = 0
+            count_pi_island = 0
+            try:
+                while not dxy <= dxy_bins[count_dxy]:
+                    count_dxy += 1
+                while not pi_island <= pi_island_bins[count_pi_island]:
+                    count_pi_island += 1
+                ## increment the heatmap point this corresponds to
+                heat[count_dxy][count_pi_island] += 1
+            except Exception as inst:
+                ## Got a value bigger than our current max pi/dxy. ignore.
+                pass
+        if np.amax(heat) > max_heat_bin:
+            max_heat_bin = np.amax(heat)
+
+    return max_heat_bin
+
+def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, one_d=False, only_extant=False, verbose=False):
     """ Normalize x and y axes for the heatmaps. Only take into account extant species.
     Inputs are the output directory to write to and an ordered dict 
     of the species at every recording duration timepoint """
@@ -349,7 +392,8 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, one_d=False,
 
     ## Get variables we care about
     max_n_species, max_abundance, _, _, _, _ = prep_normalized_plots(sp_through_time)
-    print("max_n_species - {}\nmax_abundance - {}".format(max_n_species, max_abundance))
+    if verbose:
+        print("max_n_species - {}\nmax_abundance - {}".format(max_n_species, max_abundance))
     
     ## Normalization routines
     for sp_list in sp_through_time.values():
@@ -371,7 +415,8 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, one_d=False,
 #    max_pi_island = np.average(my_pi_islands)
     max_dxy = np.median(my_dxys)
     max_pi_island = np.median(my_pi_islands)
-    print("Got\tmax_dxy - {}\t max_pi_island - {}".format(max_dxy, max_pi_island))
+    if verbose:
+        print("Got\tmax_dxy - {}\t max_pi_island - {}".format(max_dxy, max_pi_island))
     ## Make the heatmaps, one for each timeslice
     ## TODO: Should we include all species or just the ones that live to the end?
     nslices = len(sp_through_time)
@@ -379,8 +424,9 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, one_d=False,
     ## files in an order where we can cat them in numerical order w/o too much fuss
     file_index = 10**len(list(str(nslices)))
 
+    max_bin_val = get_max_heat_bin(sp_through_time, max_pi_island, max_dxy)
     ## Make the throwaway plot to get the colorbar
-    cbar_min, cbar_max = (0, 5)
+    cbar_min, cbar_max = (0, max_bin_val)
     step = 1
     Z = [[0,0],[0,0]]
     levels = range(cbar_min, cbar_max+step, step)
@@ -388,7 +434,10 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, one_d=False,
     plt.clf()
 
 
+    tot_heatmaps = len(sp_through_time.values())
     for i, sp_list in enumerate(sp_through_time.values()):
+        progressbar(tot_heatmaps, i+1)
+ 
         title = "Time_"+str(file_index+i)
         write = os.path.join(heat_out, title)
         #print("Doing", title)
@@ -436,11 +485,15 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, one_d=False,
             ## Make the 1D pi_within plot
             one_d_array = np.sum(heat, axis=0)
             one_d_array = np.array([one_d_array])
-            print("1D array - {}".format(one_d_array))
+            if verbose:
+                print("1D array - {}".format(one_d_array))
 
             ## Set the axis so it won't stretch the heatmap
             ax1.set_aspect('equal')
             heat = one_d_array
+        else:
+            if verbose:
+                print("Heatmap array - {}".format(heat))
 
         plt.pcolormesh(heat,cmap=cmap, vmin=eps)
         plt.colorbar(my_colorbar)
@@ -455,7 +508,7 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, one_d=False,
             plt.ylabel('Pairwise differences between \nisland and metacommunity (Dxy)', fontsize=20)
 
         ## Pad margins so labels don't get clipped
-        plt.subplots_adjust(bottom=0.15)
+        plt.subplots_adjust(bottom=0.25)
         #plt.title(title)
 
         ## Make the rank abundance plot
@@ -472,6 +525,8 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, one_d=False,
     
         plt.savefig(write+".png")
         plt.close()
+
+    progressbar(100, 100, "\n")
 
     make_animated_gif(heat_out,\
                         os.path.join(outdir, outfile))
@@ -576,6 +631,7 @@ def parse_command_line():
 
     gimmeSAD -a                         ## Output abundances in octaves
     gimmeSAD -q                         ## Don't be so chatty
+    gimmeSAD -v                         ## Be very chatty
 
    """)
 
@@ -618,9 +674,11 @@ def parse_command_line():
     ## Add standard quiet/force/version args
     parser.add_argument('-q', "--quiet", action='store_true',
         help="do not print to stderror or stdout.")
+    parser.add_argument('-v', "--verbose", action='store_true',
+        help="print lots of debug information")
     parser.add_argument('-f', "--force", action='store_true',
         help="force overwrite of existing data")
-    parser.add_argument('-v', '--version', action='version',
+    parser.add_argument('--version', action='version',
         version="0.0.0.1")
 
     ## parse args
@@ -787,6 +845,6 @@ if __name__ == "__main__":
         stats.write(tabulate_sumstats(data))
 
     ## Make the normalized pi_x_dxy heatmaps
-    plot_rank_abundance_through_time(args.outdir, sp_through_time, equilibria)
-    normalized_pi_dxy_heatmaps(args.outdir, sp_through_time, equilibria)
-    normalized_pi_dxy_heatmaps(args.outdir, sp_through_time, equilibria, one_d=True)
+    plot_rank_abundance_through_time(args.outdir, sp_through_time, equilibria, verbose=args.verbose)
+    normalized_pi_dxy_heatmaps(args.outdir, sp_through_time, equilibria, verbose=args.verbose)
+    normalized_pi_dxy_heatmaps(args.outdir, sp_through_time, equilibria, one_d=True, verbose=args.verbose)
