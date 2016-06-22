@@ -4,6 +4,7 @@ from __future__ import print_function
 from ascii_graph import Pyasciigraph
 import matplotlib.pyplot as plt
 from tabulate import tabulate
+import pandas as pd
 import numpy as np
 import subprocess
 import collections
@@ -173,12 +174,11 @@ def prune_extant(sp_through_time):
 
 
 def plot_rank_abundance_through_time(outdir, sp_through_time, equilibria, only_extant=False, verbose=False):
-    import pandas as pd
     import seaborn
     seaborn.set
     seaborn.set_style(style="white")
 
-    print("Generating abunance distributions through time")
+    print("Generating abundance distributions through time")
     ## Make the output directory for heatmaps inside the top level output directory
     abund_out = os.path.join(outdir, "abundance_plots")
     if not os.path.exists(abund_out):
@@ -223,15 +223,7 @@ def plot_rank_abundance_through_time(outdir, sp_through_time, equilibria, only_e
 
         ## Make the rank abundance distribution
         plt.subplot(122)
-        species = qsort(species)
-        species = species[::-1]
-        x = np.arange(0,len(species))
-        y = [np.log10(xx.abundance) for xx in species]
-        plt.scatter(x, y, color="blue", s=100)
-        plt.xlim(0, max_n_species)
-        plt.ylim(0, int(math.ceil(np.log10(max_abundance))))
-        plt.ylabel("Abundance (log10)", fontsize=25)
-        plt.xlabel("Rank", fontsize=25)
+        plot_rank_abundance(species, max_n_species, max_abundance)
 
         ## Make the SAD subplot
         abund = abundances_from_sp_list(species, octaves=True)
@@ -353,7 +345,8 @@ def get_max_heat_bin(sp_through_time, max_pi_island, max_dxy):
 
     return max_heat_bin
 
-def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, one_d=False, only_extant=False, verbose=False):
+def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, stats_models=False,\
+                                one_d=False, only_extant=False, verbose=False):
     """ Normalize x and y axes for the heatmaps. Only take into account extant species.
     Inputs are the output directory to write to and an ordered dict 
     of the species at every recording duration timepoint """
@@ -500,6 +493,8 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, one_d=False,
 
         plt.xlabel('Within island genetic diversity (pi)', fontsize=20)
         plt.xticks(np.arange(len(pi_island_bins)), ["{0:.4f}".format(x) for x in pi_island_bins], rotation='vertical')
+#        ax1.set_xticks(np.arange(len(pi_island_bins) + 0.5))
+#        ax1.set_xticklabels(["{0:.4f}".format(x) for x in pi_island_bins], rotation="vertical", ha="center")
 
         if one_d:
             plt.yticks([])
@@ -513,15 +508,7 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, one_d=False,
 
         ## Make the rank abundance plot
         plt.subplot(122)
-        species = qsort(sp_list)
-        species = species[::-1]
-        x = np.arange(0,len(species))
-        y = [np.log10(xx.abundance) for xx in species]
-        plt.scatter(x, y, color="blue", s=100)
-        plt.xlim(0, max_n_species)
-        plt.ylim(0, int(math.ceil(np.log10(max_abundance))))
-        plt.ylabel("Abundance (log10)", fontsize=25)
-        plt.xlabel("Rank", fontsize=25)
+        plot_rank_abundance(sp_list, max_n_species, max_abundance)
     
         plt.savefig(write+".png")
         plt.close()
@@ -530,6 +517,29 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, one_d=False,
 
     make_animated_gif(heat_out,\
                         os.path.join(outdir, outfile))
+
+
+def plot_rank_abundance(sp_list, max_n_species, max_abundance):
+        species = qsort(sp_list)
+        species = species[::-1]
+        X = np.arange(0,len(species))
+        Y = [np.log10(xx.abundance) for xx in species]
+        plt.scatter(X, Y, color="blue", s=100, label="simulated")
+        plt.xlim(0, max_n_species)
+        plt.ylim(0, int(math.ceil(np.log10(max_abundance))))
+        plt.ylabel("Abundance (log10)", fontsize=25)
+        plt.xlabel("Rank", fontsize=25)
+
+        ## Whether or not to include a couple common statistical models in the plots
+        stats_models = True
+        if stats_models:
+            import macroeco as meco
+            abund = [xx.abundance for xx in species]
+            mu, s = meco.models.lognorm.fit_mle(abund)
+            logser_rad = meco.models.lognorm.rank(len(abund), mu, s)
+            Y = [int(math.ceil(np.log10(x))) for x in logser_rad[::-1]]
+            plt.scatter(np.array(X), np.array(Y), s=100, color="green", label="Lognorm RAD")
+            plt.legend()
 
 
 def heatmap_pi_dxy_ascii(data, labels=False):
@@ -711,6 +721,9 @@ if __name__ == "__main__":
 
     ## Parse command line arguments
     args = parse_command_line()
+
+    if args.verbose:
+        print(args)
 
     if args.colonizers:
         ## Implicit space and clustered immigration
