@@ -173,7 +173,9 @@ def prune_extant(sp_through_time):
     return sp_through_time
 
 
-def plot_rank_abundance_through_time(outdir, sp_through_time, equilibria, only_extant=False, verbose=False):
+def plot_rank_abundance_through_time(outdir, sp_through_time, equilibria,\
+                                only_extant=False, stats_models=False, as_curve=False,\
+                                verbose=False):
     import seaborn
     seaborn.set
     seaborn.set_style(style="white")
@@ -213,23 +215,19 @@ def plot_rank_abundance_through_time(outdir, sp_through_time, equilibria, only_e
 
         title = "Time_"+str(file_index+i)
         write = os.path.join(abund_out, title)
-        ## TODO: Put progress bars here
-        #print("Doing", title)
-        
 
         ## Make the Plot
         fig = plt.figure(figsize=(12,5))
         plt.suptitle("%equilibrium = {}".format(equilibria[i]), fontsize=25)
 
-        ## Make the rank abundance distribution
-        plt.subplot(122)
-        plot_rank_abundance(species, max_n_species, max_abundance)
-
         ## Make the SAD subplot
         abund = abundances_from_sp_list(species, octaves=True)
-
         ax1 = plt.subplot(121)
         plot_sad(abund, max_n_species, max_n_bins, max_class_count, octave_bin_labels, verbose)
+
+        ## Make the rank abundance distribution subplot
+        plt.subplot(122)
+        plot_rank_abundance(species, max_n_species, max_abundance, stats_models, as_curve)
         
         plt.subplots_adjust(bottom=0.15)
         plt.savefig(write+".png")
@@ -290,6 +288,7 @@ def make_animated_gif(datadir, outfile):
         print("Trouble creating abundances through time animated gif - {}".format(inst))
         print("You probably don't have imagemagick installed")
 
+
 def get_max_heat_bin(sp_through_time, max_pi_island, max_dxy):
     max_heat_bin = 0
 
@@ -327,8 +326,10 @@ def get_max_heat_bin(sp_through_time, max_pi_island, max_dxy):
 
     return max_heat_bin
 
-def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, stats_models=False,\
-                                one_d=False, only_extant=False, verbose=False):
+
+def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, one_d=False,\
+                                only_extant=False, stats_models=False, as_curve=False,\
+                                verbose=False):
     """ Normalize x and y axes for the heatmaps. Only take into account extant species.
     Inputs are the output directory to write to and an ordered dict 
     of the species at every recording duration timepoint """
@@ -475,6 +476,8 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, stats_models
 
         plt.xlabel('Within island genetic diversity (pi)', fontsize=20)
         plt.xticks(np.arange(len(pi_island_bins)), ["{0:.4f}".format(x) for x in pi_island_bins], rotation='vertical')
+
+#        Trying to adjust the stupid x-axis labels
 #        ax1.set_xticks(np.arange(len(pi_island_bins) + 0.5))
 #        ax1.set_xticklabels(["{0:.4f}".format(x) for x in pi_island_bins], rotation="vertical", ha="center")
 
@@ -490,7 +493,7 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, stats_models
 
         ## Make the rank abundance plot
         plt.subplot(122)
-        plot_rank_abundance(sp_list, max_n_species, max_abundance)
+        plot_rank_abundance(sp_list, max_n_species, max_abundance, stats_models, as_curve)
     
         plt.savefig(write+".png")
         plt.close()
@@ -525,26 +528,37 @@ def plot_sad(abund, max_n_species, max_n_bins, max_class_count, octave_bin_label
     plt.ylabel("Count", fontsize=25)
         
 
-def plot_rank_abundance(sp_list, max_n_species, max_abundance):
+def plot_rank_abundance(sp_list, max_n_species, max_abundance, stats_models=False, as_curve=False):
+
     species = qsort(sp_list)
     species = species[::-1]
     X = np.arange(0,len(species))
-    Y = [np.log10(xx.abundance) for xx in species]
-    plt.scatter(X, Y, color="blue", s=100, label="simulated")
+    if as_curve:
+        Y = [xx.abundance for xx in species]
+        plt.semilogy(X, Y, label="simulated")
+        ymax = max_abundance
+    else:
+        Y = [np.log10(xx.abundance) for xx in species]
+        plt.scatter(X, Y, color="blue", s=100, label="simulated")
+        ymax = int(math.ceil(np.log10(max_abundance)))
+        
     plt.xlim(0, max_n_species)
-    plt.ylim(0, int(math.ceil(np.log10(max_abundance))))
+    plt.ylim(0, ymax)
     plt.ylabel("Abundance (log10)", fontsize=25)
     plt.xlabel("Rank", fontsize=25)
 
     ## Whether or not to include a couple common statistical models in the plots
-    stats_models = True
     if stats_models:
         import macroeco as meco
         abund = [xx.abundance for xx in species]
         mu, s = meco.models.lognorm.fit_mle(abund)
         logser_rad = meco.models.lognorm.rank(len(abund), mu, s)
-        Y = [int(math.ceil(np.log10(x))) for x in logser_rad[::-1]]
-        plt.scatter(np.array(X), np.array(Y), s=100, color="green", label="Lognorm RAD")
+        if as_curve:
+            Y = logser_rad[::-1]
+            plt.semilogy(X, Y, label="Lognorm RAD")
+        else:
+            Y = [int(math.ceil(np.log10(x))) for x in logser_rad[::-1]]
+            plt.scatter(np.array(X), np.array(Y), s=100, color="green", label="Lognorm RAD")
         plt.legend()
 
 
@@ -652,29 +666,28 @@ def parse_command_line():
    """)
 
     ## add model arguments 
-    parser.add_argument('-n', metavar='nsims', dest="nsims", type=int,
-        default=50000,
-        help="Number of demographic events to simulate")
+    parser.add_argument('-a', dest="octaves", action='store_true',
+        help="Print species abundances in octaves")
 
-    parser.add_argument('-k', metavar='K', dest="K", type=int,
-        default=10000,
-        help="Carrying capacity of the island (max # individuals in the local community")
+    parser.add_argument('-c', metavar='colrate', dest="colrate", type=float,
+        default=0.003,
+        help="Set colonization rate")
 
     parser.add_argument('-i', metavar='colonizers', dest="colonizers", type=int,
         default=0,
         help="Switch mode to clustered colonization and set the # of colonizers per event")
 
-    parser.add_argument('-r', metavar='recording_period', dest="recording_period", type=int,
-        default=0,
-        help="Length of timeslice between samples for logging")
+    parser.add_argument('-k', metavar='K', dest="K", type=int,
+        default=10000,
+        help="Carrying capacity of the island (max # individuals in the local community")
 
     parser.add_argument('-m', metavar='meta', dest="meta", type=str,
         default="metacommunity_LS4.txt",
         help="Source metacommunity from file or generate uniform")
 
-    parser.add_argument('-c', metavar='colrate', dest="colrate", type=float,
-        default=0.003,
-        help="Set colonization rate")
+    parser.add_argument('-n', metavar='nsims', dest="nsims", type=int,
+        default=50000,
+        help="Number of demographic events to simulate")
 
     parser.add_argument('-o', metavar='outdir', dest="outdir", type=str,
         default="output",
@@ -684,8 +697,15 @@ def parse_command_line():
         default="volcanic",
         help="Select mode for prepopulating the island (volcanic/landbridge)")
 
-    parser.add_argument('-a', dest="octaves", action='store_true',
-        help="Count species abundances in octaves")
+    parser.add_argument('-r', metavar='recording_period', dest="recording_period", type=int,
+        default=0,
+        help="Length of timeslice between samples for logging")
+
+    ## More esoteric params related to changing the way the plots are drawn
+    parser.add_argument("--curves", action='store_true',
+        help="Plot rank abundance as curves rather than points")
+    parser.add_argument("--plot_models", action='store_true',
+        help="Add expectations under different statistical models to the rank abundance plot")
 
     ## Add standard quiet/force/version args
     parser.add_argument('-q', "--quiet", action='store_true',
@@ -864,6 +884,9 @@ if __name__ == "__main__":
         stats.write(tabulate_sumstats(data))
 
     ## Make the normalized pi_x_dxy heatmaps
-    plot_rank_abundance_through_time(args.outdir, sp_through_time, equilibria, verbose=args.verbose)
-    normalized_pi_dxy_heatmaps(args.outdir, sp_through_time, equilibria, verbose=args.verbose)
-    normalized_pi_dxy_heatmaps(args.outdir, sp_through_time, equilibria, one_d=True, verbose=args.verbose)
+    plot_rank_abundance_through_time(args.outdir, sp_through_time, equilibria,\
+                stats_models=args.plot_models, as_curve=args.curves, verbose=args.verbose)
+    normalized_pi_dxy_heatmaps(args.outdir, sp_through_time, equilibria,\
+                stats_models=args.plot_models, as_curve=args.curves, verbose=args.verbose)
+    normalized_pi_dxy_heatmaps(args.outdir, sp_through_time, equilibria,\
+                stats_models=args.plot_models, as_curve=args.curves, one_d=True, verbose=args.verbose)
