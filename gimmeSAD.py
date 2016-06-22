@@ -227,27 +227,9 @@ def plot_rank_abundance_through_time(outdir, sp_through_time, equilibria, only_e
 
         ## Make the SAD subplot
         abund = abundances_from_sp_list(species, octaves=True)
+
         ax1 = plt.subplot(121)
-        ab_class, count = zip(*abund.items())
-        if verbose:
-            print(ab_class, count)
-        df = pd.DataFrame([x for x in count], index = [str(x) for x in ab_class])
-        i = -1
-        ## This is hax to make seaborn print out the x-axis labels
-        ## If the len of the dataframe is < the max len of any df
-        ## we print, even though we're trying to set the octave_bin_labels
-        ## it just won't print them. It just looks weird w/o this.
-        while len(df) < max_n_bins:
-            df.loc[i] = 0
-            i -= 1
-        bar = df.plot(kind = "bar", legend = False, ax = ax1)
-        ## Otherwise 1st bar is truncated
-        plt.xlim([0.5, max_n_bins]) 
-        ax1.set_xticklabels([str(x) for x in octave_bin_labels])
-        plt.setp(bar.get_xticklabels(), rotation=0)
-        plt.ylim(0, max_class_count)
-        plt.xlabel("Abundance Class", fontsize=25)
-        plt.ylabel("Count", fontsize=25)
+        plot_sad(abund, max_n_species, max_n_bins, max_class_count, octave_bin_labels, verbose)
         
         plt.subplots_adjust(bottom=0.15)
         plt.savefig(write+".png")
@@ -519,27 +501,51 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, stats_models
                         os.path.join(outdir, outfile))
 
 
-def plot_rank_abundance(sp_list, max_n_species, max_abundance):
-        species = qsort(sp_list)
-        species = species[::-1]
-        X = np.arange(0,len(species))
-        Y = [np.log10(xx.abundance) for xx in species]
-        plt.scatter(X, Y, color="blue", s=100, label="simulated")
-        plt.xlim(0, max_n_species)
-        plt.ylim(0, int(math.ceil(np.log10(max_abundance))))
-        plt.ylabel("Abundance (log10)", fontsize=25)
-        plt.xlabel("Rank", fontsize=25)
+def plot_sad(abund, max_n_species, max_n_bins, max_class_count, octave_bin_labels, verbose):
+    ax1 = plt.gca()
+    ab_class, count = zip(*abund.items())
+    if verbose:
+        print(ab_class, count)
+    df = pd.DataFrame([x for x in count], index = [str(x) for x in ab_class])
+    i = -1
+    ## This is hax to make seaborn print out the x-axis labels
+    ## If the len of the dataframe is < the max len of any df
+    ## we print, even though we're trying to set the octave_bin_labels
+    ## it just won't print them. It just looks weird w/o this.
+    while len(df) < max_n_bins:
+        df.loc[i] = 0
+        i -= 1
+    bar = df.plot(kind = "bar", legend = False, ax = ax1)
+    ## Otherwise 1st bar is truncated
+    plt.xlim([0.5, max_n_bins]) 
+    ax1.set_xticklabels([str(x) for x in octave_bin_labels])
+    plt.setp(bar.get_xticklabels(), rotation=0)
+    plt.ylim(0, max_class_count)
+    plt.xlabel("Abundance Class", fontsize=25)
+    plt.ylabel("Count", fontsize=25)
+        
 
-        ## Whether or not to include a couple common statistical models in the plots
-        stats_models = True
-        if stats_models:
-            import macroeco as meco
-            abund = [xx.abundance for xx in species]
-            mu, s = meco.models.lognorm.fit_mle(abund)
-            logser_rad = meco.models.lognorm.rank(len(abund), mu, s)
-            Y = [int(math.ceil(np.log10(x))) for x in logser_rad[::-1]]
-            plt.scatter(np.array(X), np.array(Y), s=100, color="green", label="Lognorm RAD")
-            plt.legend()
+def plot_rank_abundance(sp_list, max_n_species, max_abundance):
+    species = qsort(sp_list)
+    species = species[::-1]
+    X = np.arange(0,len(species))
+    Y = [np.log10(xx.abundance) for xx in species]
+    plt.scatter(X, Y, color="blue", s=100, label="simulated")
+    plt.xlim(0, max_n_species)
+    plt.ylim(0, int(math.ceil(np.log10(max_abundance))))
+    plt.ylabel("Abundance (log10)", fontsize=25)
+    plt.xlabel("Rank", fontsize=25)
+
+    ## Whether or not to include a couple common statistical models in the plots
+    stats_models = True
+    if stats_models:
+        import macroeco as meco
+        abund = [xx.abundance for xx in species]
+        mu, s = meco.models.lognorm.fit_mle(abund)
+        logser_rad = meco.models.lognorm.rank(len(abund), mu, s)
+        Y = [int(math.ceil(np.log10(x))) for x in logser_rad[::-1]]
+        plt.scatter(np.array(X), np.array(Y), s=100, color="green", label="Lognorm RAD")
+        plt.legend()
 
 
 def heatmap_pi_dxy_ascii(data, labels=False):
