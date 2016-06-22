@@ -140,7 +140,7 @@ def heatmap_pi_dxy(data, write="", title=""):
             count_pi_island += 1
         ## increment the heatmap point this corresponds to
         heat[count_pi][count_pi_island] += 1
-    plt.pcolor(heat,cmap=plt.cm.Reds)
+    plt.pcolormesh(heat,cmap=plt.cm.Blues)
     plt.xlabel('Dxy')
     plt.ylabel('Pi_w Island')
     plt.colorbar()
@@ -262,7 +262,6 @@ def prep_normalized_plots(sp_through_time):
     ## GET MAX values for abundance and num species so we can normalize the plot axes
     max_n_species = max([len(x) for x in sp_through_time.values()])
     max_abundance = max([max([y.abundance for y in sp]) for sp in sp_through_time.values()])
-    print("Got\tmax_n_species - {}\t max_abundance - {}".format(max_n_species, max_abundance))
 
     ## Get max values for abundance class count and abundance octave
     max_octave = 0
@@ -310,14 +309,24 @@ def make_animated_gif(datadir, outfile):
         print("You probably don't have imagemagick installed")
 
 
-def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, only_extant=True):
+
+def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, one_d=False, only_extant=False):
     """ Normalize x and y axes for the heatmaps. Only take into account extant species.
     Inputs are the output directory to write to and an ordered dict 
     of the species at every recording duration timepoint """
 
-    print("Generating pi x dxy heatmap animation")
+    if one_d:
+        msg = "Generating 1-D pi_w heatmap animation"
+        datadir = "1D_pi_heatmaps"
+        outfile = "1D-pi_anim.gif"
+    else:
+        msg = "Generating pi x dxy heatmap animation"
+        datadir = "normalized_heatmaps"
+        outfile = "pi_dxy_anim.gif"
+
+    print(msg)
     ## Make the output directory for heatmaps inside the top level output directory
-    heat_out = os.path.join(outdir, "normalized_heatmaps")
+    heat_out = os.path.join(outdir, datadir)
     if not os.path.exists(heat_out):
         os.mkdir(heat_out)
 
@@ -394,8 +403,8 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, only_extant=
         heat = np.zeros((20,20), dtype=np.int)
 
         ## Make the bins
-        dxy_bins = np.linspace(0, max_dxy, 20)
-        pi_island_bins = np.linspace(0, max_pi_island, 20)
+        dxy_bins = np.linspace(0, max_dxy, 20, endpoint=True)
+        pi_island_bins = np.linspace(0, max_pi_island, 20, endpoint=True)
 
         ## Now you have the bins each value belongs in, but you need to 
         ## go through and populate the heat matrix
@@ -416,17 +425,34 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, only_extant=
         ## Make the Plot
         fig = plt.figure(figsize=(12,5))
         plt.suptitle("%equilibrium = {}".format(equilibria[i]), fontsize=25)
-        plt.subplot(121)
+        ax1 = plt.subplot(121)
 
+        ## Trick to treat 0 specially in the colorplot (set it to 'white')
+        cmap = plt.cm.Blues
+        cmap.set_under('white')
+        eps = np.spacing(0.1)
 
-        ## Make the pi x dxy plot
-        plt.pcolor(heat,cmap=plt.cm.Blues)
-        plt.ylabel('Pairwise differences between \nisland and metacommunity (Dxy)', fontsize=20)
-        plt.xlabel('Within island genetic diversity (pi)', fontsize=20)
+        if one_d:
+            ## Make the 1D pi_within plot
+            one_d_array = np.sum(heat, axis=0)
+            one_d_array = np.array([one_d_array])
+            print("1D array - {}".format(one_d_array))
 
+            ## Set the axis so it won't stretch the heatmap
+            ax1.set_aspect('equal')
+            heat = one_d_array
+
+        plt.pcolormesh(heat,cmap=cmap, vmin=eps)
         plt.colorbar(my_colorbar)
+
+        plt.xlabel('Within island genetic diversity (pi)', fontsize=20)
         plt.xticks(np.arange(len(pi_island_bins)), ["{0:.4f}".format(x) for x in pi_island_bins], rotation='vertical')
-        plt.yticks(np.arange(len(dxy_bins)), ["{0:.4f}".format(x) for x in dxy_bins])
+
+        if one_d:
+            plt.yticks([])
+        else:
+            plt.yticks(np.arange(len(dxy_bins)), ["{0:.4f}".format(x) for x in dxy_bins])
+            plt.ylabel('Pairwise differences between \nisland and metacommunity (Dxy)', fontsize=20)
 
         ## Pad margins so labels don't get clipped
         plt.subplots_adjust(bottom=0.15)
@@ -444,13 +470,11 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, only_extant=
         plt.ylabel("Abundance (log10)", fontsize=25)
         plt.xlabel("Rank", fontsize=25)
     
-#        plt.tight_layout()
-
         plt.savefig(write+".png")
         plt.close()
 
     make_animated_gif(heat_out,\
-                        os.path.join(outdir, "pi_dxy_anim.gif"))
+                        os.path.join(outdir, outfile))
 
 
 def heatmap_pi_dxy_ascii(data, labels=False):
@@ -764,4 +788,5 @@ if __name__ == "__main__":
 
     ## Make the normalized pi_x_dxy heatmaps
     plot_rank_abundance_through_time(args.outdir, sp_through_time, equilibria)
-    normalized_pi_dxy_heatmaps(args.outdir, sp_through_time, equilibria, only_extant=False)
+    normalized_pi_dxy_heatmaps(args.outdir, sp_through_time, equilibria)
+    normalized_pi_dxy_heatmaps(args.outdir, sp_through_time, equilibria, one_d=True)
