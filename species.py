@@ -21,7 +21,8 @@ class species(object):
         #self.colonization_time = np.log(colonization_time)
         self.colonization_time = colonization_time
         self.Ne = meta_abundance
-        self.mutation_rate = .00000005
+        self.mutation_rate = 0.000000022
+        #self.mutation_rate = 0.00000005
         self.sequence_length = 800
         self.tree_sequence = []
         self.island_sample_size = 10
