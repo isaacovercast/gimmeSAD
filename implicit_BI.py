@@ -32,7 +32,8 @@ class implicit_BI(object):
         self.species_objects = []
 
         ## Settings specific to the uniform metacommunity
-        self.uniform_inds = 1000
+        ## This is individuals per species
+        self.uniform_inds = 10000000
         self.uniform_species = 1000
 
         ## Variables associated with the metacommunity (these are poorly named)
@@ -65,8 +66,8 @@ class implicit_BI(object):
         are calculated from there
         """
         if infile == "uniform":
-            for i in range(self.uniform_inds):
-                self.abundances = [self.uniform_inds] * self.uniform_species
+            #for i in range(self.uniform_inds):
+            self.abundances = [self.uniform_inds] * self.uniform_species
         else:
             if os.path.isfile(infile):
                 with open(infile, 'r') as inf:
