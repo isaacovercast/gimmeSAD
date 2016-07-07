@@ -5,6 +5,12 @@ from __future__ import print_function
 import subprocess
 import os
 
+
+## To get time to write stderr to an outfile you have to do something like this:
+#$ (time ls) > outfile 2>&1
+#$ (time ls) > ls_results 2> time_results
+
+
 if __name__ == "__main__":
     #NSIMS=10000
     NSIMS = 0
@@ -13,8 +19,8 @@ if __name__ == "__main__":
     if not os.path.exists(SIM_DIRECTORY):
         os.mkdir(SIM_DIRECTORY)
 
-    col_rates = [0.001, 0.01]
-    k_vals = [1000, 10000]
+    col_rates = [0.001, 0.005, 0.01, 0.05, 0.1]
+    k_vals = [1000, 5000, 10000]
 
     for i in range(0, 1):
         for c in col_rates:
@@ -44,3 +50,16 @@ if __name__ == "__main__":
                 print(cmd)
                 subprocess.call(cmd, shell=True)
 
+        ## Also do clusters of 10 immigrants and 10x size of K 
+        for c in col_rates:
+            for k in k_vals:
+                sim_string = "K_"+str(k)+"-C_"+str(c)
+                cursim_dir = os.path.join(SIM_DIRECTORY, sim_string+"_x10")
+                cmd = "./gimmeSAD.py -n "+ str(NSIMS)\
+                        + " -c " + str(c)\
+                        + " -k " + str(k*10)\
+                        + " -o " + cursim_dir\
+                        + " -i 10 "\
+                        + " &"
+                print(cmd)
+                subprocess.call(cmd, shell=True)
