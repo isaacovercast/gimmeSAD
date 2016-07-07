@@ -2,6 +2,7 @@
 
 from __future__ import print_function
 from ascii_graph import Pyasciigraph
+import matplotlib.patheffects as PathEffects
 import matplotlib.pyplot as plt
 from tabulate import tabulate
 import pandas as pd
@@ -406,7 +407,7 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, one_d=False,
     step = 1
     Z = [[0,0],[0,0]]
     levels = range(cbar_min, cbar_max+step, step)
-    my_colorbar = plt.contourf(Z, levels, cmap=plt.cm.Blues)
+    my_colorbar = plt.contourf(Z, levels, cmap=plt.cm.jet)
     plt.clf()
 
 
@@ -453,7 +454,7 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, one_d=False,
         ax1 = plt.subplot(121)
 
         ## Trick to treat 0 specially in the colorplot (set it to 'white')
-        cmap = plt.cm.Blues
+        cmap = plt.cm.jet
         cmap.set_under('white')
         eps = np.spacing(0.1)
 
@@ -472,10 +473,28 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, one_d=False,
                 print("Heatmap array - {}".format(heat))
 
         plt.pcolormesh(heat,cmap=cmap, vmin=eps)
+
         plt.colorbar(my_colorbar)
 
-        plt.xlabel('Within island genetic diversity (pi)', fontsize=20)
+        plt.xlabel('Island Diversity (pi)', fontsize=20)
         plt.xticks(np.arange(len(pi_island_bins)), ["{0:.4f}".format(x) for x in pi_island_bins], rotation='vertical')
+
+        if one_d:
+            pass
+        else:
+            pass
+        ## This is cool, but it makes the plots really busy
+        ## Add numbers to the heatplots
+        #    for y in range(heat.shape[0]):
+        #        for x in range(heat.shape[1]):
+        #            if heat[y, x] < 1:
+        #                val = ""
+        #            else:
+        #                val = str(int(heat[y,x]))
+        #            plt.text(x + 0.5, y + 0.5, '%s' % val,
+        #                     horizontalalignment='center',
+        #                     verticalalignment='center',
+        #                     path_effects=[PathEffects.withStroke(linewidth=3,foreground="w")])
 
 #        Trying to adjust the stupid x-axis labels
 #        ax1.set_xticks(np.arange(len(pi_island_bins) + 0.5))
@@ -485,7 +504,8 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, one_d=False,
             plt.yticks([])
         else:
             plt.yticks(np.arange(len(dxy_bins)), ["{0:.4f}".format(x) for x in dxy_bins])
-            plt.ylabel('Pairwise differences between \nisland and metacommunity (Dxy)', fontsize=20)
+            #plt.ylabel('Pairwise differences between \nisland and metacommunity (Dxy)', fontsize=20)
+            plt.ylabel('Island/Continent\nDivergence (Dxy)', fontsize=20)
 
         ## Pad margins so labels don't get clipped
         plt.subplots_adjust(bottom=0.25)
@@ -551,14 +571,34 @@ def plot_rank_abundance(sp_list, max_n_species, max_abundance, stats_models=Fals
     if stats_models:
         import macroeco as meco
         abund = [xx.abundance for xx in species]
+        ## Lognormal
         mu, s = meco.models.lognorm.fit_mle(abund)
-        logser_rad = meco.models.lognorm.rank(len(abund), mu, s)
+        lognorm_rad = meco.models.lognorm.rank(len(abund), mu, s)
         if as_curve:
-            Y = logser_rad[::-1]
+            Y = lognorm_rad[::-1]
             plt.semilogy(X, Y, label="Lognorm RAD")
         else:
+            Y = [int(math.ceil(np.log10(x))) for x in lognorm_rad[::-1]]
+            plt.scatter(X, Y, s=100, color="green", label="Lognorm RAD")
+        ## Logseries
+        p = meco.models.logser.fit_mle(abund)
+        logser_rad = meco.models.logser.rank(len(abund), p)
+        if as_curve:
+            Y = logser_rad[::-1]
+            plt.semilogy(X, Y, label="Logseries RAD")
+        else:
             Y = [int(math.ceil(np.log10(x))) for x in logser_rad[::-1]]
-            plt.scatter(np.array(X), np.array(Y), s=100, color="green", label="Lognorm RAD")
+            plt.scatter(X, Y, s=100, color="red", label="Logseries RAD")
+        ## Poisson Lognormal
+        mu, s = meco.models.plnorm_ztrunc.fit_mle(abund)
+        plnorm_rad = meco.models.plnorm_ztrunc.rank(len(abund), mu, s)
+        if as_curve:
+            Y = plnorm_rad[::-1]
+            plt.semilogy(X, Y, label="Logseries RAD")
+        else:
+            Y = [int(math.ceil(np.log10(x))) for x in plnorm_rad[::-1]]
+            plt.scatter(X, Y, s=100, color="red", label="Poisson Lognorm RAD")
+
         plt.legend()
 
 
@@ -832,6 +872,7 @@ if __name__ == "__main__":
                 print("\nReached first equilibrium, reset founder flags")
                 data.local_community = [(x[0], True) for x in data.local_community]
                 reached_equilib = True
+                #break
 
             ## Update progress bar
             secs = time.time()-start
@@ -841,16 +882,19 @@ if __name__ == "__main__":
             remaining_secs = (args.nsims - i) / rate
             progressbar(args.nsims, i, " | %equilib - {} | elapsed - {} | remaining - {}".format(percent_equil, elapsed, datetime.timedelta(seconds=int(remaining_secs))))
 
+        ## if %equilibrium < 25 then zoom in and record data more frequently
+        if (percent_equil < 0.25):
+            recording_period = int(args.recording_period / 10.)
+        else:
+            recording_period = args.recording_period
         ## Recording data every once in a while
-        if not i % args.recording_period and not i == 0: 
+        if not i % recording_period and not i == 0: 
             ## Every once in a while write out useful info
             data.simulate_seqs()
             sp_through_time[i] = data.get_species()
             equilibria[i] = percent_equil
             out.write("step {}\n".format(i))
             out.write(heatmap_pi_dxy_ascii(data, labels=False)+"\n")
-            ## Unnormalized axes version of heatmap. Don't use.
-            #heatmap_pi_dxy(data, os.path.join(args.outdir, "plot-"+str(i)+".png"), title="time = " + str(i))
 
     progressbar(100, 100, "  |  {}  steps completed  |  Total runtime   {}".format(i, elapsed))
 
