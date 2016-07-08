@@ -187,6 +187,7 @@ def plot_rank_abundance_through_time(outdir, sp_through_time, equilibria,\
     if not os.path.exists(abund_out):
         os.mkdir(abund_out)
 
+    times = equilibria.keys()
     equilibria = equilibria.values()
 
     ## If you only want to see extant species then prune all the extinct ones
@@ -219,7 +220,6 @@ def plot_rank_abundance_through_time(outdir, sp_through_time, equilibria,\
 
         ## Make the Plot
         fig = plt.figure(figsize=(12,5))
-        plt.suptitle("%equilibrium = {}".format(equilibria[i]), fontsize=25)
 
         ## Make the SAD subplot
         abund = abundances_from_sp_list(species, octaves=True)
@@ -231,12 +231,99 @@ def plot_rank_abundance_through_time(outdir, sp_through_time, equilibria,\
         plot_rank_abundance(species, max_n_species, max_abundance, stats_models, as_curve)
         
         plt.subplots_adjust(bottom=0.15)
+
+        suptitle = "Time: {}".format(times[i])
+        fig.get_axes()[0].annotate(suptitle, (0.5, 0.95), 
+                            xycoords='figure fraction', ha='center', 
+                            fontsize=24
+                            )
+
         plt.savefig(write+".png")
         plt.close()
 
     progressbar(100, 100, "\n")
     make_animated_gif(abund_out,\
                         os.path.join(outdir, "abundances_through_time.gif"))
+
+
+def plot_abundance_vs_colonization_time(outdir, sp_through_time, equilibria,\
+                                stats_models, as_curve, only_extant=False,\
+                                verbose=False):
+    import seaborn
+    seaborn.set
+    seaborn.set_style(style="white")
+
+    print("Generating abundance vs colonization plots through time")
+    ## Make the output directory for heatmaps inside the top level output directory
+    abund_out = os.path.join(outdir, "abundance_vs_coloniz")
+    if not os.path.exists(abund_out):
+        os.mkdir(abund_out)
+
+    times = equilibria.keys()
+    equilibria = equilibria.values()
+
+    ## If you only want to see extant species then prune all the extinct ones
+    if only_extant:
+        sp_through_time = prune_extant(sp_through_time)
+
+    max_n_species, max_abundance, max_octave, max_class_count, max_n_bins, octave_bin_labels = prep_normalized_plots(sp_through_time)
+    if verbose:
+        print("info:\n\nmax_n_species - {}\nmax_abundance - {}\nmax_octave - {}\nmax_class_count - {}"\
+                + "\nmax_n_bins - {}\noctave_bin_labels - {}\n".format(\
+                max_n_species, max_abundance, max_octave, max_class_count,\
+                max_n_bins, octave_bin_labels))
+
+    ## Get a list of UUIDs of the extant species at time 0 (present)
+    extant = [x.uuid[0] for x in sp_through_time.values()[-1]]
+    nslices = len(sp_through_time)
+    ## Create a file index that is large enough so we can create all the abundance
+    ## files in an order where we can cat them in numerical order w/o too much fuss
+    file_index = 10**len(list(str(nslices)))
+
+    tot_plots = len(sp_through_time.values())
+    for i, species in enumerate(sp_through_time.values()):
+        progressbar(tot_plots, i+1)
+
+        title = "Time_"+str(file_index+i)
+        write = os.path.join(abund_out, title)
+
+        ## Make the Plot
+        fig = plt.figure(figsize=(12,5))
+
+        ## Make the SAD subplot
+        ax1 = plt.subplot(121)
+        max_coltime = max([s.colonization_time for s in species])
+        plot_abund_vs_colon(species, max_coltime, max_abundance)
+
+        ## Make the rank abundance distribution subplot
+        plt.subplot(122)
+        plot_rank_abundance(species, max_n_species, max_abundance, stats_models, as_curve)
+
+        plt.subplots_adjust(bottom=0.15)
+
+        suptitle = "Time: {}".format(times[i])
+        fig.get_axes()[0].annotate(suptitle, (0.5, 0.95),
+                            xycoords='figure fraction', ha='center',
+                            fontsize=24
+                            )
+
+        plt.savefig(write+".png")
+        plt.close()
+
+    progressbar(100, 100, "\n")
+    make_animated_gif(abund_out,\
+                        os.path.join(outdir, "abundances_vs_coltime.gif"))
+
+
+def plot_abund_vs_colon(species, max_coltime, max_abundance):
+    x = [np.log10(s.colonization_time) for s in species]
+    y = [np.log10(s.abundance) for s in species]
+    plt.scatter(x, y, color="blue", s=100)
+    plt.ylim(0, int(math.ceil(np.log10(max_abundance))))
+    plt.xlim(0, 8) #int(math.ceil(np.log10(max_coltime))))
+    plt.title("Abundance vs Colonization Time", fontsize=24)
+    plt.ylabel("Abundance (log10)", fontsize=20)
+    plt.xlabel("Colonization Time (log10)", fontsize=20)
 
 
 def prep_normalized_plots(sp_through_time):
@@ -350,6 +437,7 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, one_d=False,
     if not os.path.exists(heat_out):
         os.mkdir(heat_out)
 
+    times = equilibria.keys()
     equilibria = equilibria.values()
 
     ## If you only want to see extant species then prune all the extinct ones
@@ -450,7 +538,10 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, one_d=False,
 
         ## Make the Plot
         fig = plt.figure(figsize=(12,5))
-        plt.suptitle("%equilibrium = {}".format(equilibria[i]), fontsize=25)
+        ## Title plot the % of equilibrium
+        #plt.suptitle("%equilibrium = {}".format(equilibria[i]), fontsize=25)
+        ## Title plot as time
+        #plt.suptitle("Time\n{}".format(times[i]), fontsize=25)
         ax1 = plt.subplot(121)
 
         ## Trick to treat 0 specially in the colorplot (set it to 'white')
@@ -476,6 +567,7 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, one_d=False,
 
         plt.colorbar(my_colorbar)
 
+        plt.title("Genetic Diversity", fontsize=24)
         plt.xlabel('Island Diversity (pi)', fontsize=20)
         plt.xticks(np.arange(len(pi_island_bins)), ["{0:.4f}".format(x) for x in pi_island_bins], rotation='vertical')
 
@@ -515,6 +607,12 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, one_d=False,
         plt.subplot(122)
         plot_rank_abundance(sp_list, max_n_species, max_abundance, stats_models, as_curve)
     
+        ## Make the super title
+        suptitle = "Time: {}".format(times[i])
+        fig.get_axes()[0].annotate(suptitle, (0.5, 0.95), 
+                            xycoords='figure fraction', ha='center', 
+                            fontsize=24
+                            )
         plt.savefig(write+".png")
         plt.close()
 
@@ -540,12 +638,13 @@ def plot_sad(abund, max_n_species, max_n_bins, max_class_count, octave_bin_label
         i -= 1
     bar = df.plot(kind = "bar", legend = False, ax = ax1)
     ## Otherwise 1st bar is truncated
+    plt.title("SAD", fontsize=24)
     plt.xlim([0.5, max_n_bins]) 
     ax1.set_xticklabels([str(x) for x in octave_bin_labels])
     plt.setp(bar.get_xticklabels(), rotation=0)
     plt.ylim(0, max_class_count)
-    plt.xlabel("Abundance Class", fontsize=25)
-    plt.ylabel("Count", fontsize=25)
+    plt.xlabel("Abundance Class", fontsize=20)
+    plt.ylabel("Count", fontsize=20)
         
 
 def plot_rank_abundance(sp_list, max_n_species, max_abundance, stats_models=False, as_curve=False):
@@ -562,10 +661,11 @@ def plot_rank_abundance(sp_list, max_n_species, max_abundance, stats_models=Fals
         plt.scatter(X, Y, color="blue", s=100, label="simulated")
         ymax = int(math.ceil(np.log10(max_abundance)))
         
+    plt.title("Rank Abundance", fontsize=24)
     plt.xlim(0, max_n_species)
     plt.ylim(0, ymax)
-    plt.ylabel("Abundance (log10)", fontsize=25)
-    plt.xlabel("Rank", fontsize=25)
+    plt.ylabel("Abundance (log10)", fontsize=20)
+    plt.xlabel("Rank", fontsize=20)
 
     ## Whether or not to include a couple common statistical models in the plots
     if stats_models:
@@ -934,3 +1034,5 @@ if __name__ == "__main__":
                 stats_models=args.plot_models, as_curve=args.curves, verbose=args.verbose)
     normalized_pi_dxy_heatmaps(args.outdir, sp_through_time, equilibria,\
                 stats_models=args.plot_models, as_curve=args.curves, one_d=True, verbose=args.verbose)
+    plot_abundance_vs_colonization_time(args.outdir, sp_through_time, equilibria,\
+                stats_models=args.plot_models, as_curve=args.curves)
