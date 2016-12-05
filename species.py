@@ -22,7 +22,7 @@ class species(object):
         self.colonization_time = colonization_time
         self.Ne = meta_abundance
         self.mutation_rate = 0.000000022
-        #self.mutation_rate = 0.00000005
+        self.mutation_rate = 0.00000005
         self.sequence_length = 800
         self.tree_sequence = []
         self.island_sample_size = 10
@@ -72,8 +72,7 @@ class species(object):
         #                                   demographic_events=[island_rate_change_event, split_event])
         #debug.print_history()
 
-        self.tree_sequence = msprime.simulate(sample_size=20, \
-                                                length=self.sequence_length,\
+        self.tree_sequence = msprime.simulate(length=self.sequence_length,\
                                                 Ne=self.meta_abundance,\
                                                 mutation_rate=self.mutation_rate, \
                                                 population_configurations=[island_pop, meta_pop],\

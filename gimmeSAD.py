@@ -44,6 +44,16 @@ def qsort(arr):
                     + [arr[0]] + qsort([x for x in arr[1:] if x.abundance>=arr[0].abundance])
 
 
+## Here abundances is an ordered dict of tuples which are (abundance, count)
+def shannon(abundances):
+    ## Unpack the abundance dist
+    abunds = []
+    for k,v in abundances.items():
+        abunds.extend([k] * v)
+    tot = np.sum(abunds)
+    return np.sum([x/float(tot) * math.log(x/float(tot)) for x in abunds  if x > 0])
+
+
 def abundances_from_sp_list(species, octaves=False):
     ## Make a counter for the local_community, counts the number of
     ## individuals w/in each species
@@ -290,7 +300,7 @@ def plot_abundance_vs_colonization_time(outdir, sp_through_time, equilibria,\
         ## Make the Plot
         fig = plt.figure(figsize=(12,5))
 
-        ## Make the SAD subplot
+        ## Make the abundance vs colonization time plot
         ax1 = plt.subplot(121)
         max_coltime = max([s.colonization_time for s in species])
         plot_abund_vs_colon(species, max_coltime, max_abundance)
@@ -842,6 +852,8 @@ def parse_command_line():
         help="Length of timeslice between samples for logging")
 
     ## More esoteric params related to changing the way the plots are drawn
+    parser.add_argument("--do_plots", action="store_true",
+        help="Generate a bunch of plots and animations. Default is not to do plots.")
     parser.add_argument("--curves", action='store_true',
         help="Plot rank abundance as curves rather than points")
     parser.add_argument("--plot_models", action='store_true',
@@ -913,6 +925,7 @@ if __name__ == "__main__":
             sys.exit("Output directory exists - {}\nUse the force flag -f to overwrite".format(args.outdir))
         out = open(os.path.join(args.outdir, "pi_x_dxy.log"), "w")
         yoyofile = open(os.path.join(args.outdir, "sizechange_through_time.log"), 'w')
+        stats = open(os.path.join(args.outdir, "sumstats.txt"), 'w')
     except Exception as inst:
         sys.exit("problem opening output for writing - {}\n{}".format(args.outdir, inst))
 
@@ -937,10 +950,16 @@ if __name__ == "__main__":
     sp_through_time = collections.OrderedDict()
     equilibria = collections.OrderedDict()
 
+    ## Whether or not to care about equilibrium
+    ## or just to run n timesteps
+    do_equilibrium = True
+
     ## if args.nsims == -1 just run until double equilibrium
-    ## or 10e7 steps (effectively forever)
+    ## or 10e9 steps (effectively forever)
     if args.nsims < 1:
         args.nsims = 1000000000
+    else:
+        do_equilibrium = False
     #for i in range(1, args.nsims):
     i = 0
     while True:
@@ -965,14 +984,15 @@ if __name__ == "__main__":
             ## Test for equilibrium
             founder_flags = [x[1] for x in data.local_community]
             percent_equil = float(founder_flags.count(False))/len(founder_flags)            
-            if (not any(founder_flags)) and reached_equilib:
-                print("\nReached second equilibrium")
-                break
-            elif not any(founder_flags):
-                print("\nReached first equilibrium, reset founder flags")
-                data.local_community = [(x[0], True) for x in data.local_community]
-                reached_equilib = True
-                #break
+            if do_equilibrium:
+                if (not any(founder_flags)) and reached_equilib:
+                    print("\nReached second equilibrium")
+                    break
+                elif not any(founder_flags):
+                    print("\nReached first equilibrium, reset founder flags")
+                    data.local_community = [(x[0], True) for x in data.local_community]
+                    reached_equilib = True
+                    #break
 
             ## Update progress bar
             secs = time.time()-start
@@ -983,7 +1003,7 @@ if __name__ == "__main__":
             progressbar(args.nsims, i, " | %equilib - {} | elapsed - {} | remaining - {}".format(percent_equil, elapsed, datetime.timedelta(seconds=int(remaining_secs))))
 
         ## if %equilibrium < 25 then zoom in and record data more frequently
-        if (percent_equil < 0.25):
+        if (percent_equil < 0.25 and do_equilibrium):
             recording_period = int(args.recording_period / 10.)
         else:
             recording_period = args.recording_period
@@ -993,8 +1013,16 @@ if __name__ == "__main__":
             data.simulate_seqs()
             sp_through_time[i] = data.get_species()
             equilibria[i] = percent_equil
-            out.write("step {}\n".format(i))
             out.write(heatmap_pi_dxy_ascii(data, labels=False)+"\n")
+            diversity_stats = dict([(s.uuid[0], (s.pi, s.dxy)) for s in data.get_species()])
+            stats.write("step {} - {}\n".format(i, diversity_stats))
+            stats.write("Shannon's entropy - {}\n".format(shannon(data.get_abundances(octaves=False))))
+
+            ## Do extra simulations per timestep
+            for j in xrange(0,1):
+                data.simulate_seqs()
+                diversity_stats = dict([(s.uuid[0], (s.pi, s.dxy)) for s in data.get_species()])
+                stats.write("step {} - {}\n".format(i, diversity_stats))
 
     progressbar(100, 100, "  |  {}  steps completed  |  Total runtime   {}".format(i, elapsed))
 
@@ -1023,16 +1051,18 @@ if __name__ == "__main__":
         stats.write("Parameters - {}\n".format(args))
         stats.write("Raw abundance dist - {}\n".format(data.get_abundances(octaves=False)))
         stats.write("Abundance in octaves - {}\n".format(data.get_abundances(octaves=True)))
+        stats.write("Shannon's entropy - {}\n".format(shannon(data.get_abundances(octaves=False))))
         stats.write(plot_abundances_ascii(abundance_distribution))
         stats.write("\n")
         stats.write(tabulate_sumstats(data))
 
-    ## Make the normalized pi_x_dxy heatmaps
-    plot_rank_abundance_through_time(args.outdir, sp_through_time, equilibria,\
-                stats_models=args.plot_models, as_curve=args.curves, verbose=args.verbose)
-    normalized_pi_dxy_heatmaps(args.outdir, sp_through_time, equilibria,\
-                stats_models=args.plot_models, as_curve=args.curves, verbose=args.verbose)
-    normalized_pi_dxy_heatmaps(args.outdir, sp_through_time, equilibria,\
-                stats_models=args.plot_models, as_curve=args.curves, one_d=True, verbose=args.verbose)
-    plot_abundance_vs_colonization_time(args.outdir, sp_through_time, equilibria,\
-                stats_models=args.plot_models, as_curve=args.curves)
+    if args.do_plots:
+        ## Make the normalized pi_x_dxy heatmaps
+        plot_rank_abundance_through_time(args.outdir, sp_through_time, equilibria,\
+                    stats_models=args.plot_models, as_curve=args.curves, verbose=args.verbose)
+        normalized_pi_dxy_heatmaps(args.outdir, sp_through_time, equilibria,\
+                    stats_models=args.plot_models, as_curve=args.curves, verbose=args.verbose)
+        normalized_pi_dxy_heatmaps(args.outdir, sp_through_time, equilibria,\
+                    stats_models=args.plot_models, as_curve=args.curves, one_d=True, verbose=args.verbose)
+        plot_abundance_vs_colonization_time(args.outdir, sp_through_time, equilibria,\
+                    stats_models=args.plot_models, as_curve=args.curves)
