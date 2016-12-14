@@ -69,18 +69,20 @@ class Community(object):
         of these locations then the species labels and immigration probs
         are calculated from there
         """
-        dt = np.dtype([('uuid', int), ('abund', int), ('col_prob', float)])
+        dt = np.dtype([('uuid', int), ('abund', np.int64), ('col_prob', float)])
         if infile == "uniform":
             #self.metacommunity = np.array([self.uniform_inds] * self.uniform_species, dtype=np.dtype("int"))
-            abunds = np.recarray([self.uniform_inds] * self.uniform_species, dtype=dt)
+            #abunds = np.recarray([self.uniform_inds] * self.uniform_species, dtype=dt)
+            abunds = np.array([self.uniform_inds] * self.uniform_species, dtype=np.int64)
         else:
             if os.path.isfile(infile):
                 with open(infile, 'r') as inf:
-                    abunds = np.array([int(line.split()[0]) for line in inf])
+                    abunds = np.array([int(line.split()[0]) for line in inf], dtype=np.int64)
             else:
                 raise Exception("Bad metacommunity input - ".format(infile))
 
-        self.metacommunity = np.recarray(len(abunds), dtype=dt)
+        #self.metacommunity = np.recarray(len(abunds), dtype=dt)
+        self.metacommunity = np.zeros(len(abunds), dtype=dt)
         self.metacommunity["uuid"] = np.arange(0, len(abunds))
         self.metacommunity["abund"] = abunds
         self.total_inds = sum(self.metacommunity["abund"])
@@ -104,7 +106,8 @@ class Community(object):
 
     def prepopulate(self, mode="landbridge"):
         dt = np.dtype([('uuid', int), ('abund', int), ('col_time', int), ('is_founder', np.bool)])
-        self.local_community = np.recarray(len(self.metacommunity), dtype=dt)
+        #self.local_community = np.recarray(len(self.metacommunity), dtype=dt)
+        self.local_community = np.zeros(len(self.metacommunity), dtype=dt)
         self.local_community["uuid"] = np.arange(0, len(self.metacommunity))
         self.local_community["col_time"] = 0
         self.local_community["abund"] = 0
@@ -138,23 +141,22 @@ class Community(object):
 
     def remove_from_local(self, n=1):
         for i in xrange(n):
-            ## If there are any members of the local community
-            if self.local_community['abund'].any():
-                ## Select the individual to die
-                ## SLOWWWWWW
-                # victim = np.random.multinomial(1, self.local_community["abund"]/float(self.K), size=1)
-                ## idx = self.local_community['uuid'][victim[0].astype("bool")]
-                ## Get the species uuid to remove from
-                idx = random.choice(self.local_abundances)
-                self.local_community['abund'][idx] -= 1
-                ## Record local extinction events
-                if self.local_community['abund'][idx] == 0:
-                    self.extinctions += 1
-                try:
-                    self.local_abundances.remove(idx)
-                except Exception as inst:
-                    print(inst)
-                    raise
+            ## Select the individual to die
+            ## SLOWWWWWW
+            # victim = np.random.multinomial(1, self.local_community["abund"]/float(self.K), size=1)
+            ## idx = self.local_community['uuid'][victim[0].astype("bool")]
+            ## Get the species uuid to remove from
+            idx = random.choice(self.local_abundances)
+            self.local_community['abund'][idx] -= 1
+            ## Record local extinction events
+            if self.local_community['abund'][idx] == 0:
+                self.extinctions += 1
+            ## Don't need this if array works
+#            try:
+#                self.local_abundances.remove(idx)
+#            except Exception as inst:
+#                print(inst)
+#                raise
 
     def step(self, nsteps=1):
         for step in xrange(nsteps):
@@ -193,7 +195,8 @@ class Community(object):
                         self.local_community["col_time"][new_species] = self.current_time
                         self.local_community["is_founder"][new_species] = False
                         self.colonizations += 1
-                        self.local_abundances.append(new_species)
+#                       Don't need this if array works
+#                        self.local_abundances.append(new_species)
                         unique = 1
             else:
                 ## Not a colonization event, remove 1 from local community
@@ -211,7 +214,9 @@ class Community(object):
                 ## Get the species uuid to update
                 ##idx = self.local_community['uuid'][parent[0].astype("bool")]
                 self.local_community['abund'][idx] += 1
-                self.local_abundances.append(idx)
+
+                ## Don't need this if array works
+                #self.local_abundances.append(idx)
 
                 ## Sample only from available extant species (early pops grow quickly in the volcanic model)
                 ## If you do this, the original colonizer just overwhelms everything else
@@ -303,7 +308,7 @@ if __name__ == "__main__":
     data.set_metacommunity("metacommunity_LS4.txt")
     #data.prepopulate(mode="landbridge")
     data.prepopulate(mode="volcanic")
-    for i in range(50000):
+    for i in range(100000):
         if not i % 1000:
             print("Done {}".format(i))
             #print(i, np.sum(data.local_community["abund"]), np.sum(data.local_community["abund"].astype("bool")))
