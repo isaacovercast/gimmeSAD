@@ -24,7 +24,7 @@ class implicit_BI(object):
     with an individual sample, used to combine samples 
     into Assembly objects."""
 
-    def __init__(self, K=10000, colrate=0.001, quiet=False):
+    def __init__(self, K=5000, colrate=0.01, quiet=False):
         self.quiet = quiet
 
         ## List for storing species objects that have had sequence
@@ -258,19 +258,19 @@ class implicit_BI(object):
 
 if __name__ == "__main__":
     data = implicit_BI()
-    data.set_metacommunity("uniform")
-    #data.set_metacommunity("metacommunity_LS4.txt")
+    #data.set_metacommunity("uniform")
+    data.set_metacommunity("metacommunity_LS4.txt")
     #data.prepopulate(mode="landbridge")
     data.prepopulate(mode="volcanic")
-    for i in range(10000):
-        if not i % 1000:
+    for i in range(100000):
+        if not i % 10000:
             print("Done {}".format(i))
             #print(i, len(data.local_community), len(set(data.local_community)))
             #print(data.local_community)
         data.step()
     abundance_distribution = data.get_abundances(octaves=False)
     print("Species abundance distribution:\n{}".format(abundance_distribution))
-    print("Colonization times per species:\n{}".format(data.divergence_times))
+    #print("Colonization times per species:\n{}".format(data.divergence_times))
     #plt.bar(abundance_distribution.keys(), abundance_distribution.values())
     #plt.show()
     print("Species:\n{}".format(data.get_species()))

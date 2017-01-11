@@ -16,11 +16,11 @@ from species import species
 
 ## Limit on the number of redraws in the event of disallowed
 ## multiple migration, error out and warn if exceeded
-MAX_DUPLICATE_REDRAWS_FROM_METACOMMUNITY = 150
+MAX_DUPLICATE_REDRAWS_FROM_METACOMMUNITY = 1000
 
 class Community(object):
 
-    def __init__(self, K=10000, colrate=0.001, mig_clust_size=1, quiet=False):
+    def __init__(self, K=5000, colrate=0.01, mig_clust_size=1, quiet=False):
         self.quiet = quiet
 
         ## List for storing species objects that have had sequence
@@ -141,22 +141,30 @@ class Community(object):
 
     def remove_from_local(self, n=1):
         for i in xrange(n):
-            ## Select the individual to die
-            ## SLOWWWWWW
-            # victim = np.random.multinomial(1, self.local_community["abund"]/float(self.K), size=1)
-            ## idx = self.local_community['uuid'][victim[0].astype("bool")]
-            ## Get the species uuid to remove from
-            idx = random.choice(self.local_abundances)
+
+            idx = self.get_random_individual()
+            #if self.local_community['abund'][idx] == 0:
+            #    sys.exit("got a bad idx")
             self.local_community['abund'][idx] -= 1
             ## Record local extinction events
             if self.local_community['abund'][idx] == 0:
                 self.extinctions += 1
             ## Don't need this if array works
-#            try:
-#                self.local_abundances.remove(idx)
-#            except Exception as inst:
-#                print(inst)
-#                raise
+            try:
+                self.local_abundances.remove(idx)
+            except Exception as inst:
+                print(inst)
+                raise
+
+
+    def get_random_individual(self):
+        ## Select the individual to die
+        ## SLOWWWWWW
+        # victim = np.random.multinomial(1, self.local_community["abund"]/float(self.K), size=1)
+        # idx = self.local_community['uuid'][victim[0].astype("bool")]
+
+        return random.choice(self.local_abundances)
+
 
     def step(self, nsteps=1):
         for step in xrange(nsteps):
@@ -174,9 +182,11 @@ class Community(object):
                 while not unique:
                     ## Sample from the metacommunity
                     migrant_draw = np.random.multinomial(1, self.metacommunity["col_prob"], size=1)[0]
-                    new_species = data.metacommunity["uuid"][migrant_draw.astype("bool")]
+                    new_species = self.metacommunity["uuid"][migrant_draw.astype("bool")]
                     ##TODO: Should set a flag to guard whether or not to allow multiple colonizations
                     if self.local_community["abund"][new_species] > 0:
+                        #print(len(np.nonzero(self.local_community["abund"])[0])),
+                        #print(np.nonzero(self.local_community["abund"])[0].sum())
                         #print(new_species, self.local_community["abund"][new_species])
                         #print("multiple colonization events are forbidden, for now")
                         unique = 0
@@ -195,8 +205,9 @@ class Community(object):
                         self.local_community["col_time"][new_species] = self.current_time
                         self.local_community["is_founder"][new_species] = False
                         self.colonizations += 1
+
 #                       Don't need this if array works
-#                        self.local_abundances.append(new_species)
+                        self.local_abundances.append(new_species)
                         unique = 1
             else:
                 ## Not a colonization event, remove 1 from local community
@@ -208,15 +219,11 @@ class Community(object):
                 ## This all was only true before i implemented the full rosindell/harmon model,
                 ## There are no more empty demes in the current config
                 
-                idx = random.choice(self.local_abundances)
-                ## SLOOWWWW
-                ## parent = np.random.multinomial(1, self.local_community["abund"]/float(self.K), size=1)
-                ## Get the species uuid to update
-                ##idx = self.local_community['uuid'][parent[0].astype("bool")]
+                idx = self.get_random_individual()
                 self.local_community['abund'][idx] += 1
 
                 ## Don't need this if array works
-                #self.local_abundances.append(idx)
+                self.local_abundances.append(idx)
 
                 ## Sample only from available extant species (early pops grow quickly in the volcanic model)
                 ## If you do this, the original colonizer just overwhelms everything else
@@ -228,32 +235,18 @@ class Community(object):
             self.current_time += 1
 
     def get_abundances(self, octaves=False):
-        ## Make a counter for the local_community, counts the number of
-        ## individuals w/in each species
-        abundances = collections.Counter([x[0] for x in self.local_community])
+        ## Get abundance classes and counts all in one swoop
+        classes_and_counts = np.unique(self.local_community["abund"], return_counts=True)
 
-        ## If we were doing mode=volcanic then there may be some remaining
-        ## space in our carrying capacity that is unoccupied (indicated by
-        ## zeros in the ubundances.keys(), if there are no
-        try:
-            abundances.pop(0)
-        except KeyError:
-            pass
+        ## Conver to a dict cuz that's what downstream expects
+        abundance_distribution = collections.OrderedDict(zip(classes_and_counts[0], classes_and_counts[1]))
+        
+        ## This is another way to do it
+        ## abundances = self.local_community[np.nonzero(self.local_community["abund"])]
+        ## classes = np.bincount(abundances["abund"])
+        ## counts = np.nonzero(classes)[0]
+        ## abundance_distribution = zip(classes, classes[counts])
 
-        ## Make a set of abundances to get all the unique values
-        abundance_classes = set(abundances.values())
-
-        ## Now for each abundance class you have to go through and
-        ## count the number of species at that abundance.
-        ## This is currently stupid because in python there's no
-        ## straightforward way to get keys from values in a dict.
-        abundance_distribution = collections.OrderedDict()
-        for i in abundance_classes:
-            count = 0
-            for _, v in abundances.items():
-                if v == i:
-                    count += 1
-            abundance_distribution[i] = count
         if octaves:
             dist_in_octaves = collections.OrderedDict()
             min = 1
@@ -297,6 +290,14 @@ class Community(object):
             s.simulate_seqs()
             s.get_sumstats()
 
+    def shannon_idex(self):
+        ## Get local abundances
+        local_abunds = self.local_community[np.nonzero(self.local_community["abund"])]
+        ## Make raw counts into proportions
+        local_abunds = local_abunds/float(self.K)
+        ## Calculate shannon index and return
+        local_abunds = local_abunds * np.log(local_abunds)
+        return local_abunds.sum() * -1
 
     def get_species(self):
         return(self.species_objects)
@@ -309,14 +310,14 @@ if __name__ == "__main__":
     #data.prepopulate(mode="landbridge")
     data.prepopulate(mode="volcanic")
     for i in range(100000):
-        if not i % 1000:
+        if not i % 10000:
             print("Done {}".format(i))
             #print(i, np.sum(data.local_community["abund"]), np.sum(data.local_community["abund"].astype("bool")))
             #print(data.local_community)
         data.step()
     abundance_distribution = data.get_abundances(octaves=False)
     print("Species abundance distribution:\n{}".format(abundance_distribution))
-    print("Colonization times per species:\n{}".format(data.divergence_times))
+    #print("Colonization times per species:\n{}".format(data.local_community[np.nonzero(data.local_community["col_time"])]))
     #plt.bar(abundance_distribution.keys(), abundance_distribution.values())
     #plt.show()
     print("Species:\n{}".format(data.get_species()))
