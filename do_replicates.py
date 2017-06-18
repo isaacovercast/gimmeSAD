@@ -2,8 +2,10 @@
 
 from __future__ import print_function
 
+import numpy as np
 import subprocess
 import time
+import sys
 import os
 
 ## This script will run each combination of col rate and K 100 times.
@@ -18,16 +20,26 @@ import os
 #$ (time ls) > ls_results 2> time_results
 
 if __name__ == "__main__":
-    NSIMS=1000000
-    SIM_DIRECTORY="replicates"
+    ## 1e6 sims normally just barely gets to equilibrium for most models
+    #NSIMS=1000000
+    ## Run all the way to double equilibrium
+    NSIMS=0
+    SIM_DIRECTORY="new_sims"
     #RECORDING_INTERVAL = NSIMS/100
     if not os.path.exists(SIM_DIRECTORY):
         os.mkdir(SIM_DIRECTORY)
 
-    col_rates = [0.01, 0.05]
-    k_vals = [1000, 5000]
+    ## Samples from log-uniform distribution
+    col_rates = np.log10(np.array([0.001, 0.05]))
+    col_rates = np.random.uniform(col_rates[0], col_rates[1], 3)
+    col_rates = np.power(10, col_rates)
+    ## Just do uniform for k values
+    k_vals = np.random.random_integers(1000, 10000, 3)
+    #k_vals = np.log10(np.array([1000, 10000]))
+    #k_vals = np.random.uniform(k_vals[0], k_vals[1], 3)
+    #k_vals = map(int, np.power(10, k_vals))
 
-    for i in xrange(100):
+    for i in xrange(1):
         print("Doing {}".format(i))
         t = str(time.time())
         for c in col_rates:
@@ -38,6 +50,7 @@ if __name__ == "__main__":
                         + " -c " + str(c)\
                         + " -k " + str(k)\
                         + " -o " + cursim_dir\
+                        + " -q "\
                         + " &"
                 print(cmd)
                 subprocess.call(cmd, shell=True)

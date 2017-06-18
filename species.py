@@ -16,20 +16,22 @@ class species(object):
         self.name = names.names().get_name()
         self.uuid = UUID
         self.abundance = abundance
-        self.local_Ne = self.abundance * 1000
+        self.local_Ne = self.abundance * 10000
         self.meta_abundance = meta_abundance / 100.
         #self.colonization_time = np.log(colonization_time)
         self.colonization_time = colonization_time
         self.Ne = meta_abundance
         self.mutation_rate = 0.000000022
-        self.mutation_rate = 0.00000005
-        self.sequence_length = 800
+#        self.mutation_rate = 0.00000007
+        self.sequence_length = 570
         self.tree_sequence = []
         self.island_sample_size = 10
         self.meta_sample_size = 10
 
         ## Need to calculate the growth rate
-        self.r_island = -np.log(10./self.local_Ne)/self.colonization_time
+        self.r_island = -np.log(100./self.local_Ne)/self.colonization_time
+        ## This one works okay.
+        #self.r_island = -np.log(10./self.local_Ne)/self.colonization_time
         #self.r_island = 0
 
         ## Stats
