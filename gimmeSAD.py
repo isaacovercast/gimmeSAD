@@ -43,6 +43,51 @@ def qsort(arr):
           return qsort([x for x in arr[1:] if x.abundance<arr[0].abundance])\
                     + [arr[0]] + qsort([x for x in arr[1:] if x.abundance>=arr[0].abundance])
 
+def make_outputfile(model, stats):
+    """ Make the output file formatted correctly for each model.
+        Model 1 - Local pi vector only
+        Model 2 - Local pi vector and observed SAD
+        Model 3 - Local pi and dxy
+        Model 4 - Local pi, dxy, and observed SAD
+        """
+    ## Write the header, the same for all.
+    stats.write("K\tc\tstep\t%equil\tcolrate\textrate\tshannon")
+    ## Write the pi or pi/dxy bins
+    if model in [1, 2]:
+        for row in xrange(10):
+            stats.write("\tbin_{}".format(row))
+    elif model in [3, 4]:        
+        for row in xrange(10):
+            for col in xrange(10):
+                stats.write("\tbin_{}_{}".format(row, col))
+    else:
+        raise Exception("Value for --model must be one of [1,2,3,4]")
+
+    stats.write("\n")  
+    
+
+def write_outfile(model, stats, data, eq):
+    ## Calculate some crap of interest
+    extrate = data.extinctions/float(data.current_time)
+    colrate = data.colonizations/float(data.current_time)
+    shan = shannon(data.get_abundances(octaves=False))
+
+    ## Write the common data
+    stats.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\t".format(data.local_inds, data.colonization_rate,\
+                                                      data.current_time, eq, colrate, extrate, shan))
+    ## Models 1 & 2 use the 1D island pi only vector
+    if model in [1, 2]:
+        ## This is a 2d heatmap so we have to marginalize over dxy
+        heat = heatmap_pi_dxy_ascii(data, labels=False).strip()
+        heat = np.array([np.array(x.split(" "), dtype=int) for x in heat.split("\n")])
+        one_d = heat.sum(axis=0)
+        stats.write("\t".join(map(str,one_d)))
+
+    ## Models 3 & 4 use the 2D pi x dxy matrix
+    elif model in [3, 4]:
+        heat = heatmap_pi_dxy_ascii(data, labels=False).replace("\n", "\t")
+        stats.write("\t".join(heat) + "\n")
+    stats.write("\n")
 
 ## Here abundances is an ordered dict of tuples which are (abundance, count)
 def shannon(abundances):
@@ -752,7 +797,7 @@ def heatmap_pi_dxy_ascii(data, labels=False):
     for i, row in enumerate(heat):
         if labels:
             ret += "{0:.4f}".format(pi_bins[i])
-        ret += str(row) + "\n"
+        ret += ' '.join(map(str, row)) + "\n"
 
     if labels:
         ret += "\t" + str(["{0:.4f}".format(x) for x in pi_island_bins])
@@ -843,6 +888,10 @@ def parse_command_line():
         default="output",
         help="Output directory for log/data files and pngs")
 
+    parser.add_argument("--model", metavar="model", dest="model", type=int,
+        default=1,
+        help="Data model for writing output files.")
+
     parser.add_argument('-p', metavar='mode', dest="mode", type=str,
         default="volcanic",
         help="Select mode for prepopulating the island (volcanic/landbridge)")
@@ -926,6 +975,10 @@ if __name__ == "__main__":
         out = open(os.path.join(args.outdir, "pi_x_dxy.log"), "w")
         yoyofile = open(os.path.join(args.outdir, "sizechange_through_time.log"), 'w')
         stats = open(os.path.join(args.outdir, "sumstats.txt"), 'w')
+
+        ## Make the output file properly formatted for this model and return the file object
+        make_outputfile(args.model, stats)
+
     except Exception as inst:
         sys.exit("problem opening output for writing - {}\n{}".format(args.outdir, inst))
 
@@ -1015,14 +1068,18 @@ if __name__ == "__main__":
             equilibria[i] = percent_equil
             out.write(heatmap_pi_dxy_ascii(data, labels=False)+"\n")
             diversity_stats = dict([(s.uuid[0], (s.pi, s.dxy)) for s in data.get_species()])
-            stats.write("step {} - {}\n".format(i, diversity_stats))
-            stats.write("Shannon's entropy - {}\n".format(shannon(data.get_abundances(octaves=False))))
+
+            ## Write to the output file
+            if reached_equilib:
+                eq = 1
+            else:
+                eq = percent_equil
+            write_outfile(args.model, stats, data, eq)
 
             ## Do extra simulations per timestep
             for j in xrange(0,1):
                 data.simulate_seqs()
-                diversity_stats = dict([(s.uuid[0], (s.pi, s.dxy)) for s in data.get_species()])
-                stats.write("step {} - {}\n".format(i, diversity_stats))
+                write_outfile(args.model, stats, data, eq)
 
     progressbar(100, 100, "  |  {}  steps completed  |  Total runtime   {}".format(i, elapsed))
 
@@ -1041,8 +1098,8 @@ if __name__ == "__main__":
     ## Print out some informative business
     ## Get all results and write out final sumstats
     abundance_distribution = data.get_abundances(octaves=args.octaves)
-    print(plot_abundances_ascii(abundance_distribution))
     if not args.quiet:
+        print(plot_abundances_ascii(abundance_distribution))
         print(tabulate_sumstats(data))
 
     ## Write out to log files
