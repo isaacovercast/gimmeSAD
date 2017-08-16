@@ -29,17 +29,20 @@ if __name__ == "__main__":
     if not os.path.exists(SIM_DIRECTORY):
         os.mkdir(SIM_DIRECTORY)
 
+    ## Sample from uniform distribution
+    col_rates = [0.001, 0.05]
     ## Samples from log-uniform distribution
-    col_rates = np.log10(np.array([0.001, 0.05]))
-    col_rates = np.random.uniform(col_rates[0], col_rates[1], 3)
-    col_rates = np.power(10, col_rates)
+    #col_rates = np.log10(np.array([0.001, 0.05]))
+    col_rates = np.random.uniform(col_rates[0], col_rates[1], 4)
+    #col_rates = np.power(10, col_rates)
+
     ## Just do uniform for k values
-    k_vals = np.random.random_integers(1000, 10000, 3)
+    k_vals = np.random.random_integers(1000, 10000, 4)
     #k_vals = np.log10(np.array([1000, 10000]))
     #k_vals = np.random.uniform(k_vals[0], k_vals[1], 3)
     #k_vals = map(int, np.power(10, k_vals))
 
-    for i in xrange(1):
+    for i in xrange(10):
         print("Doing {}".format(i))
         t = str(time.time())
         for c in col_rates:
@@ -54,4 +57,4 @@ if __name__ == "__main__":
                         + " &"
                 print(cmd)
                 subprocess.call(cmd, shell=True)
-        time.sleep(120)
+        time.sleep(1200)
