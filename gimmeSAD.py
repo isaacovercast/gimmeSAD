@@ -92,11 +92,9 @@ def write_outfile(model, stats, data, eq):
 ## Here abundances is an ordered dict of tuples which are (abundance, count)
 def shannon(abundances):
     ## Unpack the abundance dist
-    abunds = []
-    for k,v in abundances.items():
-        abunds.extend([k] * v)
+    abunds = [v for v in abundances.values()]
     tot = np.sum(abunds)
-    return np.sum([x/float(tot) * math.log(x/float(tot)) for x in abunds  if x > 0])
+    return -1 * np.sum([x/float(tot) * math.log(x/float(tot)) for x in abunds  if x > 0])
 
 
 def abundances_from_sp_list(species, octaves=False):
