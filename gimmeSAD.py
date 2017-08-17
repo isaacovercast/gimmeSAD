@@ -86,7 +86,7 @@ def write_outfile(model, stats, data, eq):
     ## Models 3 & 4 use the 2D pi x dxy matrix
     elif model in [3, 4]:
         heat = heatmap_pi_dxy_ascii(data, labels=False).replace("\n", "\t")
-        stats.write("\t".join(heat) + "\n")
+        stats.write("\t".join(heat))
     stats.write("\n")
 
 ## Here abundances is an ordered dict of tuples which are (abundance, count)
@@ -887,7 +887,7 @@ def parse_command_line():
         help="Output directory for log/data files and pngs")
 
     parser.add_argument("--model", metavar="model", dest="model", type=int,
-        default=1,
+        default=4,
         help="Data model for writing output files.")
 
     parser.add_argument('-p', metavar='mode', dest="mode", type=str,
