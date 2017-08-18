@@ -29,32 +29,54 @@ if __name__ == "__main__":
     if not os.path.exists(SIM_DIRECTORY):
         os.mkdir(SIM_DIRECTORY)
 
-    ## Sample from uniform distribution
-    col_rates = [0.001, 0.05]
-    ## Samples from log-uniform distribution
-    #col_rates = np.log10(np.array([0.001, 0.05]))
-    col_rates = np.random.uniform(col_rates[0], col_rates[1], 4)
-    #col_rates = np.power(10, col_rates)
-
-    ## Just do uniform for k values
-    k_vals = np.random.random_integers(1000, 10000, 4)
-    #k_vals = np.log10(np.array([1000, 10000]))
-    #k_vals = np.random.uniform(k_vals[0], k_vals[1], 3)
-    #k_vals = map(int, np.power(10, k_vals))
-
-    for i in xrange(10):
-        print("Doing {}".format(i))
-        t = str(time.time())
-        for c in col_rates:
-            for k in k_vals:
-                sim_string = "K_"+str(k)+"-C_"+str(c) + "_" + t
-                cursim_dir = os.path.join(SIM_DIRECTORY, sim_string)
-                cmd = "./gimmeSAD.py -n "+ str(NSIMS)\
-                        + " -c " + str(c)\
-                        + " -k " + str(k)\
-                        + " -o " + cursim_dir\
-                        + " -q "\
-                        + " &"
-                print(cmd)
-                subprocess.call(cmd, shell=True)
-        time.sleep(1200)
+    for j in xrange(10):
+        print("iteration {}".format(j))
+        ## Sample from uniform distribution
+        col_rates = [0.001, 0.05]
+        ## Samples from log-uniform distribution
+        #col_rates = np.log10(np.array([0.001, 0.05]))
+        col_rates = np.random.uniform(col_rates[0], col_rates[1], 4)
+        #col_rates = np.power(10, col_rates)
+    
+        ## Just do uniform for k values
+        k_vals = np.random.random_integers(1000, 10000, 4)
+        #k_vals = np.log10(np.array([1000, 10000]))
+        #k_vals = np.random.uniform(k_vals[0], k_vals[1], 3)
+        #k_vals = map(int, np.power(10, k_vals))
+    
+        pids = []
+        for i in xrange(10):
+            print("Doing {}".format(i))
+            t = str(time.time())
+            for c in col_rates:
+                for k in k_vals:
+                    sim_string = "K_"+str(k)+"-C_"+str(c) + "_" + t
+                    cursim_dir = os.path.join(SIM_DIRECTORY, sim_string)
+                    cmd = "./gimmeSAD.py -n "+ str(NSIMS)\
+                            + " -c " + str(c)\
+                            + " -k " + str(k)\
+                            + " -o " + cursim_dir\
+                            + " -q "\
+                            + " &"
+                    pid = subprocess.Popen(cmd, shell=True).pid
+                    pids.append(pid)
+            done = False
+            while not done:
+                ## Test all pids have ended
+                try:
+                    alive = []
+                    for p in pids:
+                        try:
+                            os.kill(p, 0)
+                            alive.append(True)
+                        except:
+                            pass
+                            ## This one is dead
+                    if any(alive):
+                        sleep(1)
+                    else:
+                        done = True
+                except:
+                    pass
+            print(pids)
+            print(alive)
