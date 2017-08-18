@@ -57,7 +57,7 @@ if __name__ == "__main__":
                             + " -k " + str(k)\
                             + " -o " + cursim_dir\
                             + " -q "\
-                            + " &"
+                            + " > /dev/null &"
                     pid = subprocess.Popen(cmd, shell=True).pid
                     pids.append(pid)
             done = False
