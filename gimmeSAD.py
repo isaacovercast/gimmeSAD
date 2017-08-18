@@ -75,18 +75,19 @@ def write_outfile(model, stats, data, eq):
     ## Write the common data
     stats.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\t".format(data.local_inds, data.colonization_rate,\
                                                       data.current_time, eq, colrate, extrate, shan))
+
+    heat = heatmap_pi_dxy_ascii(data, labels=False).strip()
+    heat = np.array([np.array(x.split(" "), dtype=int) for x in heat.split("\n")])
+
     ## Models 1 & 2 use the 1D island pi only vector
     if model in [1, 2]:
         ## This is a 2d heatmap so we have to marginalize over dxy
-        heat = heatmap_pi_dxy_ascii(data, labels=False).strip()
-        heat = np.array([np.array(x.split(" "), dtype=int) for x in heat.split("\n")])
-        one_d = heat.sum(axis=0)
-        stats.write("\t".join(map(str,one_d)))
-
+        heat = heat.sum(axis=0)
     ## Models 3 & 4 use the 2D pi x dxy matrix
     elif model in [3, 4]:
-        heat = heatmap_pi_dxy_ascii(data, labels=False).replace("\n", "\t")
-        stats.write("\t".join(heat))
+        heat = heat.flatten()
+
+    stats.write("\t".join(map(str,heat)))
     stats.write("\n")
 
 ## Here abundances is an ordered dict of tuples which are (abundance, count)
