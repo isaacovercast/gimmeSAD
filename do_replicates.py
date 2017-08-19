@@ -44,9 +44,11 @@ if __name__ == "__main__":
         #k_vals = np.random.uniform(k_vals[0], k_vals[1], 3)
         #k_vals = map(int, np.power(10, k_vals))
     
-        pids = []
+        FNULL = open(os.devnull, 'w')
         for i in xrange(10):
             print("Doing {}".format(i))
+            pids = {}
+            procs = {}
             t = str(time.time())
             for c in col_rates:
                 for k in k_vals:
@@ -57,27 +59,28 @@ if __name__ == "__main__":
                             + " -k " + str(k)\
                             + " -o " + cursim_dir\
                             + " --model=2 "\
-                            + " -q "\
-                            + " > /dev/null &"
-                    pid = subprocess.Popen(cmd, shell=True).pid
-                    pids.append(pid)
+                            + " -q "
+                            #+ " > /dev/null &"
+                    proc = subprocess.Popen(cmd.split(), shell=False, stdout=FNULL)
+                    pid = proc.pid
+                    procs[pid] = proc
+                    pids[pid] = True
             done = False
             while not done:
                 ## Test all pids have ended
                 try:
-                    alive = []
-                    for p in pids:
+                    time.sleep(5)
+                    for p in pids.keys():
                         try:
                             os.kill(p, 0)
-                            alive.append(True)
+                            procs[p].communicate()
                         except:
-                            pass
+                            pids[p] = False
                             ## This one is dead
-                    if any(alive):
-                        sleep(1)
+                    if any(pids.values()):
+                        print(pids.keys())
+                        print(pids.values())
                     else:
                         done = True
                 except:
                     pass
-            print(pids)
-            print(alive)
