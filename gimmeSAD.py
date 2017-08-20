@@ -787,8 +787,13 @@ def heatmap_pi_dxy_ascii(data, labels=False):
             count_pi_island += 1
         ## increment the heatmap point this corresponds to
         heat[count_pi][count_pi_island] += 1
+    pivals = [x[0] for x in pis]
+    dxyvals = [x[1] for x in pis]
 
     ret = ""
+    if labels:
+        ret = "mean/stdv pi {}/{}\tmean/stdv dxy {}/{}".format(np.mean(pivals), np.std(pivals),\
+                                                            np.mean(dxyvals), np.std(dxyvals))
     ## ascii format the data, and make a weak attempt to convey some information
     if labels:
         ret += "\nDxy\n"
@@ -1065,7 +1070,7 @@ if __name__ == "__main__":
             data.simulate_seqs()
             sp_through_time[i] = data.get_species()
             equilibria[i] = percent_equil
-            out.write(heatmap_pi_dxy_ascii(data, labels=False)+"\n")
+            out.write("atEQ {}\tstep {}\tpercent_equil {}\t".format(reached_equilib, i, percent_equil) + heatmap_pi_dxy_ascii(data, labels=True)+"\n")
             diversity_stats = dict([(s.uuid[0], (s.pi, s.dxy)) for s in data.get_species()])
 
             ## Write to the output file
