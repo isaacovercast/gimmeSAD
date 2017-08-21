@@ -112,8 +112,9 @@ class implicit_BI(object):
             #self.local_community = [0] * self.local_inds
             #self.local_community = [((x,0), True) for x in self.local_community]
             new_species = (self.species[self.immigration_probabilities.index(self.maxabundance)][0], True)
-            for i in range(1,self.local_inds+1):
-                self.local_community.append(new_species)
+            self.local_community.append(new_species)
+            for i in range(1,self.local_inds):
+                self.local_community.append((None,True))
             self.divergence_times[new_species] = 1
 
 
@@ -126,7 +127,8 @@ class implicit_BI(object):
                 self.local_community.remove(victim)
                 ## Record local extinction events
                 if not victim in self.local_community:
-                    self.extinctions += 1
+                    if not victim[0] == None:
+                        self.extinctions += 1
                 
             ## Check probability of an immigration event
             if np.random.random_sample() < self.colonization_rate:
@@ -188,9 +190,9 @@ class implicit_BI(object):
 
         ## If we were doing mode=volcanic then there may be some remaining
         ## space in our carrying capacity that is unoccupied (indicated by
-        ## zeros in the ubundances.keys(), if there are no
+        ## None in the abundances.keys()
         try:
-            abundances.pop(0)
+            abundances.pop(None)
         except KeyError:
             pass
 
