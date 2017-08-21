@@ -64,7 +64,83 @@ def make_outputfile(model, stats):
         raise Exception("Value for --model must be one of [1,2,3,4]")
 
     stats.write("\n")  
-    
+
+def get_min_max_stats_through_time(sp_through_time):
+    ## Normalization routines
+    max_pi_island = 0
+    max_dxy = 0
+
+    for sp_list in sp_through_time.values():
+
+        ## Get max pi and max dxy
+        pis = np.array([(x.dxy, x.pi_island) for x in sp_list])
+        ## pis will be empty if this timeslice includes no extant species
+        if pis.any():
+            my_max_dxy = max([x[0] for x in pis])
+            my_max_pi_island = max([x[1] for x in pis])
+            if max_dxy < my_max_dxy:
+                max_dxy = my_max_dxy
+            if max_pi_island < my_max_pi_island:
+                max_pi_island = my_max_pi_island
+
+    return max_pi_island, max_dxy
+
+def normalize_heatmap_to_numpy(sp_list, max_pi, max_dxy):
+    ## Get the sumstats for this timeslice
+    ## Only include extant species in plots
+    #pis = np.array([(x.dxy, x.pi_island) for x in sp_list if x.uuid[0] in extant])
+    ## include all species at each timeslice
+    pis = np.array([(x.dxy, x.pi_island) for x in sp_list])
+
+    ## Empty heatmap we'll write into
+    heat = np.zeros((10,10), dtype=np.int)
+
+    ## Make the bins
+    dxy_bins = np.linspace(0, max_dxy, 10, endpoint=True)
+    pi_island_bins = np.linspace(0, max_pi, 10, endpoint=True)
+
+    ## Now you have the bins each value belongs in, but you need to 
+    ## go through and populate the heat matrix
+    for dxy, pi_island in pis:
+        count_dxy = 0
+        count_pi_island = 0
+        try:
+            while not dxy <= dxy_bins[count_dxy]:
+                count_dxy += 1
+            while not pi_island <= pi_island_bins[count_pi_island]:
+                count_pi_island += 1
+            ## increment the heatmap point this corresponds to
+            heat[count_dxy][count_pi_island] += 1
+        except Exception as inst:
+            ## Got a value bigger than our current max pi/dxy. ignore.
+            pass
+    return heat
+        
+
+def write_heats_to_outfile(model, stats, data, sp_through_time, equilibria):
+    stats.close()
+    stats = open(stats.name, 'r')
+    lines = stats.readlines()
+
+    max_pi, max_dxy = get_min_max_stats_through_time(sp_through_time)
+
+    for i, line in enumerate(lines[1:]):
+        time = int(line.strip().split()[2])
+        heat = normalize_heatmap_to_numpy(sp_through_time[time], max_pi, max_dxy)
+
+        ## Models 1 & 2 use the 1D island pi only vector
+        if model in [1, 2]:
+        ## This is a 2d heatmap so we have to marginalize over dxy
+            heat = heat.sum(axis=0)
+        ## Models 3 & 4 use the 2D pi x dxy matrix
+        elif model in [3, 4]:
+            heat = heat.flatten()
+        lines[i+1] = line.strip() + "\t" + "\t".join(map(str,heat))
+
+    stats.close()
+    lines[0] = lines[0].strip()
+    stats = open(stats.name, 'w')
+    stats.write("\n".join(lines))
 
 def write_outfile(model, stats, data, eq):
     ## Calculate some crap of interest
@@ -75,7 +151,8 @@ def write_outfile(model, stats, data, eq):
     ## Write the common data
     stats.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\t".format(data.local_inds, data.colonization_rate,\
                                                       data.current_time, eq, colrate, extrate, shan))
-
+    stats.write("\n")
+    return
     heat = heatmap_pi_dxy_ascii(data, labels=False).strip()
     heat = np.array([np.array(x.split(" "), dtype=int) for x in heat.split("\n")])
 
@@ -1070,7 +1147,8 @@ if __name__ == "__main__":
             data.simulate_seqs()
             sp_through_time[i] = data.get_species()
             equilibria[i] = percent_equil
-            out.write("atEQ {}\tstep {}\tpercent_equil {}\t".format(reached_equilib, i, percent_equil) + heatmap_pi_dxy_ascii(data, labels=True)+"\n")
+            out.write("atEQ {}\tstep {}\tpercent_equil {}\t shannon {}".format(reached_equilib, i, percent_equil,\
+                                                    shannon(data.get_abundances(octaves=False))) + heatmap_pi_dxy_ascii(data, labels=True)+"\n")
             diversity_stats = dict([(s.uuid[0], (s.pi, s.dxy)) for s in data.get_species()])
 
             ## Write to the output file
@@ -1081,9 +1159,9 @@ if __name__ == "__main__":
             write_outfile(args.model, stats, data, eq)
 
             ## Do extra simulations per timestep
-            for j in xrange(0,1):
-                data.simulate_seqs()
-                write_outfile(args.model, stats, data, eq)
+            ## for j in xrange(0,1):
+            ##    data.simulate_seqs()
+            ##    write_outfile(args.model, stats, data, eq)
 
     progressbar(100, 100, "  |  {}  steps completed  |  Total runtime   {}".format(i, elapsed))
 
@@ -1106,6 +1184,9 @@ if __name__ == "__main__":
         print(plot_abundances_ascii(abundance_distribution))
         print(tabulate_sumstats(data))
 
+    ## Write out normalized pi_x_dxy heatmaps to the sumstats file
+    write_heats_to_outfile(args.model, stats, data, sp_through_time, equilibria)
+
     ## Write out to log files
     write_sizechanges(args.outdir, yoyo)
     with open(os.path.join(args.outdir, "gimmeSAD.out"), "w") as stats:
@@ -1116,6 +1197,7 @@ if __name__ == "__main__":
         stats.write(plot_abundances_ascii(abundance_distribution))
         stats.write("\n")
         stats.write(tabulate_sumstats(data))
+
 
     if args.do_plots:
         ## Make the normalized pi_x_dxy heatmaps
