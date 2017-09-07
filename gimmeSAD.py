@@ -5,6 +5,7 @@ from ascii_graph import Pyasciigraph
 import matplotlib.patheffects as PathEffects
 import matplotlib.pyplot as plt
 from tabulate import tabulate
+from scipy.stats import iqr
 import pandas as pd
 import numpy as np
 import subprocess
@@ -117,6 +118,9 @@ def normalize_heatmap_to_numpy(sp_list, max_pi, max_dxy):
     return heat
         
 
+## This is hackish because it goes through and writes out some stats at runtime
+## then goes back at the very end and writes out the heatmaps per line
+## of the file. very confusing.
 def write_heats_to_outfile(model, stats, data, sp_through_time, equilibria):
     stats.close()
     stats = open(stats.name, 'r')
@@ -869,8 +873,9 @@ def heatmap_pi_dxy_ascii(data, labels=False):
 
     ret = ""
     if labels:
-        ret = "mean/stdv pi {}/{}\tmean/stdv dxy {}/{}".format(np.mean(pivals), np.std(pivals),\
-                                                            np.mean(dxyvals), np.std(dxyvals))
+        ret = "mean/stdv/median/iqr pi {}/{}/{}/{}\tmean/stdv/median/iqr dxy {}/{}/{}/{}".format(\
+                                            np.mean(pivals), np.std(pivals), np.median(pivals), iqr(pivals),\
+                                                            np.mean(dxyvals), np.std(dxyvals), np.median(dxyvals), iqr(dxyvals))
     ## ascii format the data, and make a weak attempt to convey some information
     if labels:
         ret += "\nDxy\n"
@@ -1147,7 +1152,7 @@ if __name__ == "__main__":
             data.simulate_seqs()
             sp_through_time[i] = data.get_species()
             equilibria[i] = percent_equil
-            out.write("atEQ {}\tstep {}\tpercent_equil {}\t shannon {}".format(reached_equilib, i, percent_equil,\
+            out.write("atEQ {}\tstep {}\tpercent_equil {}\t shannon {} ".format(reached_equilib, i, percent_equil,\
                                                     shannon(data.get_abundances(octaves=False))) + heatmap_pi_dxy_ascii(data, labels=True)+"\n")
             diversity_stats = dict([(s.uuid[0], (s.pi, s.dxy)) for s in data.get_species()])
 
