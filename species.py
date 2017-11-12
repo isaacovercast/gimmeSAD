@@ -16,11 +16,11 @@ class species(object):
         self.name = names.names().get_name()
         self.uuid = UUID
         self.abundance = abundance
-        self.local_Ne = self.abundance * 10000
-        self.meta_abundance = meta_abundance / 100.
+        self.local_Ne = self.abundance * 1000
+        self.meta_abundance = meta_abundance * 10
         #self.colonization_time = np.log(colonization_time)
         self.colonization_time = colonization_time
-        self.Ne = meta_abundance
+        self.Ne = self.meta_abundance
         self.mutation_rate = 0.000000022
 #        self.mutation_rate = 0.00000007
         self.sequence_length = 570
@@ -29,21 +29,24 @@ class species(object):
         self.meta_sample_size = 10
 
         ## Need to calculate the growth rate
-        self.r_island = -np.log(100./self.local_Ne)/self.colonization_time
+        #self.r_island = -np.log(100./self.local_Ne)/self.colonization_time
         ## This one works okay.
         #self.r_island = -np.log(10./self.local_Ne)/self.colonization_time
-        #self.r_island = 0
+        self.r_island = 0
 
         ## Stats
         self.pi = 0
         self.S = 0
         self.S_island = 0
         self.S_meta = 0
+        self.pi_island = 0
+        self.pi_meta = 0
         self.pi_net = 0
         self.dxy = 0
 
     def __str__(self):
-        return "<species {}>".format(self.name)
+        return "<species {}/coltime {}/local Ne {}/meta Ne {}/pi_island {}/pi_meta {}/dxy {}/S_island {}/S_meta {}>".format(self.name, self.colonization_time,\
+                            self.local_Ne, self.Ne, self.pi_island, self.pi_meta, self.dxy, self.S_island, self.S_meta)
 
     def __repr__(self):
         return self.__str__()
@@ -64,21 +67,25 @@ class species(object):
                                             destination=1,\
                                             proportion=1)
 
-        island_rate_change_event = msprime.PopulationParametersChange(time=self.colonization_time,\
+        island_rate_change_event = msprime.PopulationParametersChange(time=self.colonization_time-1,\
                                                                         growth_rate=0,\
+                                                                        population_id=0)
+
+        island_size_change_event = msprime.PopulationParametersChange(time=self.colonization_time-1,\
+                                                                        initial_size=0,\
                                                                         population_id=0)
 
         ## Useful for debugging demographic events. Mass migration and exponetial growth are both working.
         #print(self.name, self.colonization_time)
-        #debug = msprime.DemographyDebugger(population_configurations=[island_pop, meta_pop],\
-        #                                   demographic_events=[island_rate_change_event, split_event])
+        debug = msprime.DemographyDebugger(population_configurations=[island_pop, meta_pop],\
+                                           demographic_events=[island_rate_change_event, split_event])
         #debug.print_history()
 
         self.tree_sequence = msprime.simulate(length=self.sequence_length,\
-                                                Ne=self.meta_abundance,\
+                                                Ne=self.local_Ne,\
                                                 mutation_rate=self.mutation_rate, \
                                                 population_configurations=[island_pop, meta_pop],\
-                                                demographic_events=[island_rate_change_event, split_event])
+                                                demographic_events=[island_size_change_event, island_rate_change_event, split_event])
 
         #self.tree_sequence = msprime.simulate(sample_size=10, Ne=self.Ne, length=self.sequence_length, mutation_rate=self.mutation_rate)
 
@@ -120,6 +127,11 @@ class species(object):
         ## pi_net
         self.pi_net = self.dxy - (self.pi_island + self.pi_meta)/2
 
+        ## Forbid biologically unrealistic values of pi
+        if self.pi_meta > 0.2 or self.pi_island > 0.2:
+            print("Bad pi {}".format(self))
+            self.simulate_seqs()
+            self.get_sumstats()
 
 def get_pi(haplotypes):
     ## If no seg sites in a pop then haplotypes will be 0 length

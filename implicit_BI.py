@@ -127,7 +127,10 @@ class implicit_BI(object):
                 self.local_community.remove(victim)
                 ## Record local extinction events
                 if not victim in self.local_community:
-                    if not victim[0] == None:
+                    ## This was supposed to not record "extinctions" of empty deme space
+                    ## but it fucks up the calculation of extinction rate
+                    ##if not victim[0] == None:
+                    if True:
                         self.extinctions += 1
                 
             ## Check probability of an immigration event

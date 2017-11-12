@@ -1095,11 +1095,15 @@ if __name__ == "__main__":
     ## Whether or not to care about equilibrium
     ## or just to run n timesteps
     do_equilibrium = True
+    single_equilibrium = True
 
-    ## if args.nsims == -1 just run until double equilibrium
+    ## if args.nsims < 0 just run until double equilibrium
     ## or 10e9 steps (effectively forever)
+    ## if args.nsims == 0, do single equilibrium
+    if not args.nsims == 0:
+        single_equilibrium = False
     if args.nsims < 1:
-        args.nsims = 1000000000
+        args.nsims = 100000000
     else:
         do_equilibrium = False
     #for i in range(1, args.nsims):
@@ -1131,10 +1135,14 @@ if __name__ == "__main__":
                     print("\nReached second equilibrium")
                     break
                 elif not any(founder_flags):
-                    print("\nReached first equilibrium, reset founder flags")
-                    data.local_community = [(x[0], True) for x in data.local_community]
-                    reached_equilib = True
-                    #break
+                    if single_equilibrium:
+                        print("\nReached single equilibrium.")
+                        break
+                    else:
+                        print("\nReached first equilibrium, reset founder flags")
+                        data.local_community = [(x[0], True) for x in data.local_community]
+                        reached_equilib = True
+                        #break
 
             ## Update progress bar
             secs = time.time()-start
@@ -1144,8 +1152,8 @@ if __name__ == "__main__":
             remaining_secs = (args.nsims - i) / rate
             progressbar(args.nsims, i, " | %equilib - {} | elapsed - {} | remaining - {}".format(percent_equil, elapsed, datetime.timedelta(seconds=int(remaining_secs))))
 
-        ## if %equilibrium < 25 then zoom in and record data more frequently
-        if (percent_equil < 0.25 and do_equilibrium):
+        ## if %equilibrium < 75 then zoom in and record data more frequently
+        if (percent_equil < 0.75 and do_equilibrium):
             recording_period = int(args.recording_period / 10.)
         else:
             recording_period = args.recording_period
@@ -1161,9 +1169,14 @@ if __name__ == "__main__":
 
             coltimefile.write("{} {} {}\n".format(percent_equil, i, data.divergence_times.values()))
             abundacesfile.write("{} {}\n".format(percent_equil, data.get_abundances(octaves=False)))
-            pidxyfile.write("{} pi {}\n".format(percent_equil, [s.pi for s in data.get_species()]))
+            pidxyfile.write("{} pi {}\n".format(percent_equil, [s.pi_island for s in data.get_species()]))
             pidxyfile.write("{} dxy {}\n".format(percent_equil, [s.dxy for s in data.get_species()]))
 
+            for p,c in diversity_stats.values():
+                if p > 0.3 or c > 0.3:
+                    print(tabulate_sumstats(data))
+                    print("one is fuck: pi {} dxy {}".format(p,c))
+                    sys.exit()
             ## Write to the output file
             if reached_equilib:
                 eq = 1
@@ -1186,6 +1199,8 @@ if __name__ == "__main__":
     ## When finished simulate the final set of sequences
     data.simulate_seqs()
     sp_through_time[i] = data.get_species()
+    pidxyfile.write("{} pi {}\n".format(percent_equil, [s.pi_island for s in data.get_species()]))
+    pidxyfile.write("{} dxy {}\n".format(percent_equil, [s.dxy for s in data.get_species()]))
     equilibria[i] = percent_equil
     print("Extinction rate - {}".format(data.extinctions/float(data.current_time)))
     print("Colonization rate - {}".format(data.colonizations/float(data.current_time)))
