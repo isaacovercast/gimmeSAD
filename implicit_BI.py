@@ -55,6 +55,11 @@ class implicit_BI(object):
         self.extinctions = 0
         self.colonizations = 0
         self.current_time = 0
+        
+        ## Vector for tracking lifetimes of excinct species
+        ## We can plot this and average it to figure out how long
+        ## species hang around in the local community
+        self.extinction_times = []
 
 
     def set_metacommunity(self, infile):
@@ -132,7 +137,12 @@ class implicit_BI(object):
                     ##if not victim[0] == None:
                     if True:
                         self.extinctions += 1
-                
+                        try:
+                            self.extinction_times.append(self.current_time - self.divergence_times[victim])
+                        except:
+                            ## The empty deme will make this freak
+                            pass
+
             ## Check probability of an immigration event
             if np.random.random_sample() < self.colonization_rate:
     
