@@ -1064,6 +1064,7 @@ if __name__ == "__main__":
         coltimefile = open(os.path.join(args.outdir, "coltimes.txt"), 'w')
         abundacesfile = open(os.path.join(args.outdir, "abundances.txt"), 'w')
         pidxyfile = open(os.path.join(args.outdir, "pidxy.txt"), 'w')
+        extfile = open(os.path.join(args.outdir, "extinction_times.txt"), "w")
 
         ## Make the output file properly formatted for this model and return the file object
         make_outputfile(args.model, stats)
@@ -1171,6 +1172,9 @@ if __name__ == "__main__":
             abundacesfile.write("{} {}\n".format(percent_equil, data.get_abundances(octaves=False)))
             pidxyfile.write("{} pi {}\n".format(percent_equil, [s.pi_island for s in data.get_species()]))
             pidxyfile.write("{} dxy {}\n".format(percent_equil, [s.dxy for s in data.get_species()]))
+            extfile.write("{} {}\n".format(percent_equil, " ".join([str(x) for x in data.extinction_times])))
+            ## blank extinction times
+            data.extinction_times = []
 
             for p,c in diversity_stats.values():
                 if p > 0.3 or c > 0.3:
@@ -1201,6 +1205,7 @@ if __name__ == "__main__":
     sp_through_time[i] = data.get_species()
     pidxyfile.write("{} pi {}\n".format(percent_equil, [s.pi_island for s in data.get_species()]))
     pidxyfile.write("{} dxy {}\n".format(percent_equil, [s.dxy for s in data.get_species()]))
+    extfile.write("{} {}\n".format(percent_equil, " ".join([str(x) for x in data.extinction_times])))
     equilibria[i] = percent_equil
     print("Extinction rate - {}".format(data.extinctions/float(data.current_time)))
     print("Colonization rate - {}".format(data.colonizations/float(data.current_time)))
