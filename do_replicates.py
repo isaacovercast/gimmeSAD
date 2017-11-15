@@ -24,7 +24,12 @@ if __name__ == "__main__":
     #NSIMS=1000000
     ## Run all the way to double equilibrium
     NSIMS=0
-    SIM_DIRECTORY="2d_sims"
+    if sys.argv[1] == "1":
+        SIM_DIRECTORY="1d_sims"
+        DATA_MODEL=2
+    else:
+        SIM_DIRECTORY="2d_sims"
+        DATA_MODEL=4
     #RECORDING_INTERVAL = NSIMS/100
     if not os.path.exists(SIM_DIRECTORY):
         os.mkdir(SIM_DIRECTORY)
@@ -58,7 +63,7 @@ if __name__ == "__main__":
                             + " -c " + str(c)\
                             + " -k " + str(k)\
                             + " -o " + cursim_dir\
-                            + " --model=4 "\
+                            + " --model={} ".format(DATA_MODEL)\
                             + " -q "
                             #+ " > /dev/null &"
                     proc = subprocess.Popen(cmd.split(), shell=False, stdout=FNULL)
