@@ -59,6 +59,10 @@ class implicit_CI(object):
         self.colonizations = 0
         self.current_time = 0
 
+        ## Vector for tracking lifetimes of excinct species
+        ## We can plot this and average it to figure out how long
+        ## species hang around in the local community
+        self.extinction_times = []
 
     def set_metacommunity(self, infile):
         """
@@ -131,6 +135,11 @@ class implicit_CI(object):
                 ## Record local extinction events
                 if not victim in self.local_community:
                     self.extinctions += 1
+                    try:
+                        self.extinction_times.append(self.current_time - self.divergence_times[victim])
+                    except:
+                        ## The empty deme will make this freak
+                        pass
 
 
     def step(self, nsteps=1):
