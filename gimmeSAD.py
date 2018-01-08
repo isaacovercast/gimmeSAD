@@ -702,8 +702,7 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, one_d=False,
 
         plt.colorbar(my_colorbar)
 
-        plt.title("Genetic Diversity", fontsize=24)
-        plt.xlabel('Island Diversity (pi)', fontsize=20)
+        plt.xlabel(u"Nucleotide diversity ()", fontsize=20)
         plt.xticks(np.arange(len(pi_island_bins)), ["{0:.4f}".format(x) for x in pi_island_bins], rotation='vertical')
 
         if one_d:
@@ -728,11 +727,13 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, one_d=False,
 #        ax1.set_xticklabels(["{0:.4f}".format(x) for x in pi_island_bins], rotation="vertical", ha="center")
 
         if one_d:
+            plt.title("1D-SGD", fontsize=24)
             plt.yticks([])
         else:
+            plt.title("2D-SGD", fontsize=24)
             plt.yticks(np.arange(len(dxy_bins)), ["{0:.4f}".format(x) for x in dxy_bins])
             #plt.ylabel('Pairwise differences between \nisland and metacommunity (Dxy)', fontsize=20)
-            plt.ylabel('Island/Continent\nDivergence (Dxy)', fontsize=20)
+            plt.ylabel(r"Absolute divergence ($D_{xy}$)", fontsize=20)
 
         ## Pad margins so labels don't get clipped
         plt.subplots_adjust(bottom=0.25)
