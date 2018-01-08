@@ -702,7 +702,7 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, one_d=False,
 
         plt.colorbar(my_colorbar)
 
-        plt.xlabel(u"Nucleotide diversity ()", fontsize=20)
+        plt.xlabel(u"Nucleotide diversity (\u03c0)", fontsize=20)
         plt.xticks(np.arange(len(pi_island_bins)), ["{0:.4f}".format(x) for x in pi_island_bins], rotation='vertical')
 
         if one_d:
