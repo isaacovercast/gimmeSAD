@@ -18,6 +18,8 @@ import math
 import sys
 import os
 
+plt.switch_backend('agg')
+
 import implicit_BI
 import implicit_CI
 
@@ -615,6 +617,10 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, one_d=False,
 #    max_pi_island = np.average(my_pi_islands)
     max_dxy = np.median(my_dxys)
     max_pi_island = np.median(my_pi_islands)
+    ## However this function is calculating the heatmaps is fucked up, so you have to
+    ## hard code max values for pi and dxy here.
+    max_dxy = 0.04
+    max_pi_island = 0.02
     if verbose:
         print("Got\tmax_dxy - {}\t max_pi_island - {}".format(max_dxy, max_pi_island))
     ## Make the heatmaps, one for each timeslice
