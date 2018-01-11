@@ -16,7 +16,8 @@ class species(object):
         self.name = names.names().get_name()
         self.uuid = UUID
         self.abundance = abundance
-        self.local_Ne = self.abundance * 1000
+        self.alpha = 1000
+        self.local_Ne = self.abundance * self.alpha
         self.meta_abundance = meta_abundance * 1000
         #self.colonization_time = np.log(colonization_time)
         self.colonization_time = colonization_time
@@ -135,6 +136,10 @@ class species(object):
             self.simulate_seqs()
             self.get_sumstats()
 
+    def update_abundance(self, abund):
+        self.abundance = abund
+        self.local_Ne = abund * self.alpha
+
 def get_pi(haplotypes):
     ## If no seg sites in a pop then haplotypes will be 0 length
     if haplotypes.size == 0:
@@ -176,6 +181,7 @@ def get_dxy(ihaps_t, mhaps_t):
         dxy += (nonzeros_island * zeros_meta \
                 + zeros_island * nonzeros_meta) / float(n_comparisons)
     return dxy
+
 
 if __name__ == "__main__":
     from tabulate import tabulate

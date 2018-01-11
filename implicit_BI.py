@@ -274,6 +274,25 @@ class implicit_BI(object):
             abundance_distribution = dist_in_octaves
         return abundance_distribution
 
+    ## How strong is the bottleneck? Strength should be interpreted as percent of local
+    ## community to retain
+    def bottleneck(self, strength=1):
+        reduction = int(round(self.local_inds * strength))
+        self.local_community = self.local_community[:reduction]
+
+        ## First remove the extinct species from the species list
+        pre = len(self.species_objects)
+        self.species_objects = [s for s in self.species_objects if s.uuid in self.local_community]
+        ## Update the extinction counter
+        self.extinctions += (pre - len(self.species_objects))
+
+        sp = self.species_objects
+        ## Update abundances per species that survived the bottleneck
+        for i, s in enumerate(sp):
+            if s.uuid in self.local_community:
+                abund = self.local_community.count(s.uuid)
+                s.update_abundance(abund)
+                self.species_objects[i] = s
 
     def simulate_seqs(self):
         self.species_objects = []
@@ -302,6 +321,8 @@ class implicit_BI(object):
             #if s.abundance > 1000:
             #    print("\n{}".format(s))
 
+    def set_species(self, species_objects):
+        self.species_objects = species_objects
 
     def get_species(self):
         return(self.species_objects)
