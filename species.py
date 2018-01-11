@@ -17,7 +17,7 @@ class species(object):
         self.uuid = UUID
         self.abundance = abundance
         self.local_Ne = self.abundance * 1000
-        self.meta_abundance = meta_abundance * 10
+        self.meta_abundance = meta_abundance * 1000
         #self.colonization_time = np.log(colonization_time)
         self.colonization_time = colonization_time
         self.Ne = self.meta_abundance
