@@ -242,10 +242,21 @@ def plot_abundances_gui(abundance_distribution):
 
 def tabulate_sumstats(data):
     sp = data.get_species()
+    ## Highlight the invasive
+    for i,s in enumerate(sp):
+        try:
+            if s.uuid == data.invasive:
+                s.name = s.name + "*"
+                sp[i] = s
+        except:
+            pass
+            ## This will barf if invasive isn't a tuple
+
     #print("Species colonization times (in generations):\n{}".format([x.colonization_time for x in sp]))
     #print("Species Ne:\n{}".format([x.Ne for x in sp]))
     headers = ["Species Name", "Col time", "Loc Abund", "Meta Abund", "pi", "pi_net", "Dxy",  "S", "S_island", "pi_island", "S_meta", "pi_meta"]
     acc = [[s.name, s.colonization_time, s.abundance, int(s.meta_abundance), s.pi, s.pi_net, s.dxy, s.S, s.S_island, s.pi_island, s.S_meta, s.pi_meta] for s in sp]
+
     return tabulate(acc, headers, floatfmt=".4f")
 
 
@@ -961,7 +972,7 @@ def parse_command_line():
         default=0.003,
         help="Set colonization rate")
 
-    parser.add_argument('-i', metavar='colonizers', dest="colonizers", type=int,
+    parser.add_argument('-C', metavar='colonizers', dest="colonizers", type=int,
         default=0,
         help="Switch mode to clustered colonization and set the # of colonizers per event")
 
@@ -992,6 +1003,21 @@ def parse_command_line():
     parser.add_argument('-r', metavar='recording_period', dest="recording_period", type=int,
         default=0,
         help="Length of timeslice between samples for logging")
+
+    parser.add_argument('-i', metavar='invasion_time', dest="invasion_time", type=int,
+        default=-1,
+        help="Timestep of invasion of invasive species")
+
+    parser.add_argument('-I', metavar='invasiveness', dest="invasiveness", type=float,
+        default=0.1,
+        help="Invasiveness of the invasive species")
+
+    parser.add_argument('-e', dest="exponential", action='store_true',
+        help="Do exponential growth, otherwise constant")
+    
+    parser.add_argument('-b', metavar='bottleneck', dest="bottleneck", type=float,
+        default=1.,
+        help="Strength of the bottleneck")
 
     ## More esoteric params related to changing the way the plots are drawn
     parser.add_argument("--do_plots", action="store_true",
@@ -1050,7 +1076,7 @@ if __name__ == "__main__":
         data = implicit_CI.implicit_CI(K=args.K, colrate=args.colrate, mig_clust_size=args.colonizers, quiet=args.quiet)
     else:
         ## Implicit space, one colonizer per event
-        data = implicit_BI.implicit_BI(K=args.K, colrate=args.colrate, quiet=args.quiet)
+        data = implicit_BI.implicit_BI(K=args.K, colrate=args.colrate, exponential=args.exponential, quiet=args.quiet)
 
     ## Set model parameters
     data.set_metacommunity(args.meta)
@@ -1120,7 +1146,7 @@ if __name__ == "__main__":
         if i == args.nsims:
             break
         i += 1
-        data.step()
+        data.step(time=i, invasion_time=args.invasion_time, invasiveness=args.invasiveness)
 
         ## Print the progress bar every once in a while
         ## Set a flag for equilibrium. If you've reached it, flip all the
@@ -1170,12 +1196,16 @@ if __name__ == "__main__":
             ## Every once in a while write out useful info
             data.simulate_seqs()
             sp_through_time[i] = data.get_species()
+            ## Save a copy of the local_community
             equilibria[i] = percent_equil
+            if args.bottleneck < 1:
+                tmp_local = data.local_community
+                data.bottleneck(args.bottleneck)
             out.write("atEQ {}\tstep {}\tpercent_equil {}\t shannon {} ".format(reached_equilib, i, percent_equil,\
                                                     shannon(data.get_abundances(octaves=False))) + heatmap_pi_dxy_ascii(data, labels=True)+"\n")
             diversity_stats = dict([(s.uuid[0], (s.pi, s.dxy)) for s in data.get_species()])
 
-            coltimefile.write("{} {} {}\n".format(percent_equil, i, data.divergence_times.values()))
+            coltimefile.write("{} {} {}\n".format(percent_equil, i, data.divergence_times.items()))
             abundacesfile.write("{} {}\n".format(percent_equil, data.get_abundances(octaves=False)))
             pidxyfile.write("{} pi {}\n".format(percent_equil, [s.pi_island for s in data.get_species()]))
             pidxyfile.write("{} dxy {}\n".format(percent_equil, [s.dxy for s in data.get_species()]))
@@ -1187,13 +1217,17 @@ if __name__ == "__main__":
                 if p > 0.3 or c > 0.3:
                     print(tabulate_sumstats(data))
                     print("one is fuck: pi {} dxy {}".format(p,c))
-                    sys.exit()
+                    #sys.exit()
             ## Write to the output file
             if reached_equilib:
                 eq = 1
             else:
                 eq = percent_equil
             write_outfile(args.model, stats, data, eq)
+
+            if args.bottleneck < 1:
+                ## after the bottleneck put the original community back to continue the simulations
+                data.local_community = tmp_local
 
             ## Do extra simulations per timestep
             ## for j in xrange(0,1):
@@ -1210,12 +1244,16 @@ if __name__ == "__main__":
     ## When finished simulate the final set of sequences
     data.simulate_seqs()
     sp_through_time[i] = data.get_species()
+    if args.bottleneck < 1:
+        tmp_local = data.local_community
+        data.bottleneck(args.bottleneck)
     pidxyfile.write("{} pi {}\n".format(percent_equil, [s.pi_island for s in data.get_species()]))
     pidxyfile.write("{} dxy {}\n".format(percent_equil, [s.dxy for s in data.get_species()]))
     extfile.write("{} {}\n".format(percent_equil, " ".join([str(x) for x in data.extinction_times])))
     equilibria[i] = percent_equil
     print("Extinction rate - {}".format(data.extinctions/float(data.current_time)))
     print("Colonization rate - {}".format(data.colonizations/float(data.current_time)))
+    print("Invasive survival # - {}".format(data.survived_invasives))
 
     ## Print out some informative business
     ## Get all results and write out final sumstats
@@ -1249,3 +1287,4 @@ if __name__ == "__main__":
                     stats_models=args.plot_models, as_curve=args.curves, one_d=True, verbose=args.verbose)
         plot_abundance_vs_colonization_time(args.outdir, sp_through_time, equilibria,\
                     stats_models=args.plot_models, as_curve=args.curves)
+
