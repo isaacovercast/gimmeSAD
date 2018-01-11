@@ -1015,6 +1015,9 @@ def parse_command_line():
     parser.add_argument('-e', dest="exponential", action='store_true',
         help="Do exponential growth, otherwise constant")
     
+    parser.add_argument('-b', metavar='bottleneck', dest="bottleneck", type=float,
+        default=1.,
+        help="Strength of the bottleneck")
 
     ## More esoteric params related to changing the way the plots are drawn
     parser.add_argument("--do_plots", action="store_true",
@@ -1193,7 +1196,11 @@ if __name__ == "__main__":
             ## Every once in a while write out useful info
             data.simulate_seqs()
             sp_through_time[i] = data.get_species()
+            ## Save a copy of the local_community
             equilibria[i] = percent_equil
+            if args.bottleneck < 1:
+                tmp_local = data.local_community
+                data.bottleneck(args.bottleneck)
             out.write("atEQ {}\tstep {}\tpercent_equil {}\t shannon {} ".format(reached_equilib, i, percent_equil,\
                                                     shannon(data.get_abundances(octaves=False))) + heatmap_pi_dxy_ascii(data, labels=True)+"\n")
             diversity_stats = dict([(s.uuid[0], (s.pi, s.dxy)) for s in data.get_species()])
@@ -1218,6 +1225,10 @@ if __name__ == "__main__":
                 eq = percent_equil
             write_outfile(args.model, stats, data, eq)
 
+            if args.bottleneck < 1:
+                ## after the bottleneck put the original community back to continue the simulations
+                data.local_community = tmp_local
+
             ## Do extra simulations per timestep
             ## for j in xrange(0,1):
             ##    data.simulate_seqs()
@@ -1233,6 +1244,9 @@ if __name__ == "__main__":
     ## When finished simulate the final set of sequences
     data.simulate_seqs()
     sp_through_time[i] = data.get_species()
+    if args.bottleneck < 1:
+        tmp_local = data.local_community
+        data.bottleneck(args.bottleneck)
     pidxyfile.write("{} pi {}\n".format(percent_equil, [s.pi_island for s in data.get_species()]))
     pidxyfile.write("{} dxy {}\n".format(percent_equil, [s.dxy for s in data.get_species()]))
     extfile.write("{} {}\n".format(percent_equil, " ".join([str(x) for x in data.extinction_times])))
@@ -1274,4 +1288,3 @@ if __name__ == "__main__":
         plot_abundance_vs_colonization_time(args.outdir, sp_through_time, equilibria,\
                     stats_models=args.plot_models, as_curve=args.curves)
 
-    print("\n")
