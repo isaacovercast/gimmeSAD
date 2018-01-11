@@ -62,6 +62,7 @@ def worker(invasion_time, invasiveness, SIM_DIRECTORY):
                                     + " --model={} ".format(DATA_MODEL)\
                                     + " -i " + str(invasion_time)\
                                     + " -I " + str(invasiveness)\
+                                    + " -e " \
                                     + " -q "
                                     #+ " > /dev/null &"
                             proc = subprocess.Popen(cmd.split(), shell=False, stdout=FNULL)
