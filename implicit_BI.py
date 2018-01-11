@@ -25,12 +25,13 @@ class implicit_BI(object):
     with an individual sample, used to combine samples 
     into Assembly objects."""
 
-    def __init__(self, K=5000, colrate=0.01, quiet=False):
+    def __init__(self, K=5000, colrate=0.01, exponential=False, quiet=False):
         self.quiet = quiet
 
         ## List for storing species objects that have had sequence
         ## simulated and sumstats calculated
         self.species_objects = []
+        self.exponential = exponential
 
         ## Settings specific to the uniform metacommunity
         ## This is individuals per species
@@ -62,6 +63,11 @@ class implicit_BI(object):
         ## species hang around in the local community
         self.extinction_times = []
 
+        ## The invasive species identity
+        self.invasive = -1
+        ## Track how many invasives differentially survived
+        self.survived_invasives = 0
+        self.invasion_time = 0
 
     def set_metacommunity(self, infile):
         """
@@ -128,13 +134,22 @@ class implicit_BI(object):
             self.divergence_times[new_species] = 1
 
 
-    def step(self, nsteps=1):
+    def step(self, nsteps=1, time=0, invasion_time=100000, invasiveness=0.1):
         for step in range(nsteps):
             ## If there are any members of the local community
             if self.local_community:
                 ## Select the individual to die
                 victim = random.choice(self.local_community)
-                self.local_community.remove(victim)
+                ## If no invasive hasn't invaded then just do the normal sampling
+                if self.invasive == -1:
+                    self.local_community.remove(victim)
+                else:
+                    ## If invasiveness is less than the random value remove the invasive individual
+                    ## else choose a new individual
+                    if victim == self.invasive and np.random.rand() < invasiveness:
+                        self.survived_invasives += 1
+                        victim = random.choice(self.local_community)
+                    self.local_community.remove(victim)
                 ## Record local extinction events
                 if not victim in self.local_community:
                     ## This was supposed to not record "extinctions" of empty deme space
@@ -147,6 +162,10 @@ class implicit_BI(object):
                         except:
                             ## The empty deme will make this freak
                             pass
+                    ## If the invasive prematurely goes extinct just pick a new one
+                    if victim == self.invasive:
+                        print("invasive went extinct")
+                        self.invasive = -1
 
             ## Check probability of an immigration event
             if np.random.random_sample() < self.colonization_rate:
@@ -183,6 +202,11 @@ class implicit_BI(object):
                             sys.exit(msg)
                         idiot_count +=1
                     else:
+                        ## Only set the invasive species once at the time of next migration post invasion time
+                        if self.invasive == -1 and time >= invasion_time and not invasion_time < 0:
+                            self.invasive = (new_species[0], False)
+                            print("setting invasive species {} at time {}".format(self.invasive, self.current_time))
+                            self.invasion_time = self.current_time
                         self.local_community.append((new_species[0], False))
                         self.divergence_times[(new_species[0], False)] = self.current_time
                         self.colonizations += 1
@@ -268,12 +292,15 @@ class implicit_BI(object):
                 abundance = self.local_community.count(UUID)
                 #print(self.local_community)
                 self.species_objects.append(species(UUID=UUID, colonization_time=self.current_time - tdiv,\
-                                        abundance=abundance,\
+                                        exponential=self.exponential, abundance=abundance,\
                                         meta_abundance=meta_abundance))
 
         for s in self.species_objects:
             s.simulate_seqs()
             s.get_sumstats()
+            ## For debugging invasives
+            #if s.abundance > 1000:
+            #    print("\n{}".format(s))
 
 
     def get_species(self):

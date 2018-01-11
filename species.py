@@ -12,7 +12,7 @@ import math
 
 class species(object):
 
-    def __init__(self, UUID = "", abundance = 1, meta_abundance = 1, colonization_time = 0):
+    def __init__(self, UUID = "", exponential = False, abundance = 1, meta_abundance = 1, colonization_time = 0):
         self.name = names.names().get_name()
         self.uuid = UUID
         self.abundance = abundance
@@ -31,8 +31,10 @@ class species(object):
         ## Need to calculate the growth rate
         #self.r_island = -np.log(100./self.local_Ne)/self.colonization_time
         ## This one works okay.
-        #self.r_island = -np.log(10./self.local_Ne)/self.colonization_time
-        self.r_island = 0
+        if exponential:
+            self.r_island = -np.log(10./self.local_Ne)/self.colonization_time
+        else:
+            self.r_island = 0
 
         ## Stats
         self.pi = 0
