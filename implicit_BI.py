@@ -3,6 +3,7 @@
 
 import matplotlib.pyplot as plt
 from ascii_graph import Pyasciigraph
+from scipy.stats import logser
 import collections
 import numpy as np
 import itertools
@@ -17,7 +18,7 @@ from species import species
 
 ## Limit on the number of redraws in the event of disallowed
 ## multiple migration, error out and warn if exceeded
-MAX_DUPLICATE_REDRAWS_FROM_METACOMMUNITY = 150
+MAX_DUPLICATE_REDRAWS_FROM_METACOMMUNITY = 1500
 
 class implicit_BI(object):
     """ ipyrad Sample object. Links to files associated
@@ -70,7 +71,11 @@ class implicit_BI(object):
         of these locations then the species labels and immigration probs
         are calculated from there
         """
-        if infile == "uniform":
+        if infile == "logser":
+            ## Parameter of the logseries distribution
+            p = .98
+            self.abundances = logser.rvs(p, size=self.local_inds)
+        elif infile == "uniform":
             #for i in range(self.uniform_inds):
             self.abundances = [self.uniform_inds] * self.uniform_species
         else:
@@ -160,18 +165,22 @@ class implicit_BI(object):
                     #print("Immigration event - {}".format(np.where(migrant_draw == 1)))
                     #print("Immigrant - {}".format(self.species[np.where(migrant_draw == 1)[1][0]]))
                     new_species = self.species[np.where(migrant_draw == 1)[1][0]]
-    
                     ##TODO: Should set a flag to guard whether or not to allow multiple colonizations
-                    if new_species in self.local_community:
+                    if new_species[0] in [x[0] for x in self.local_community]:
                         #print("multiple colonization events are forbidden, for now")
-                        unique = 0
+                        new_species = (self.current_time, new_species[1])
+                        self.species.append(new_species)
+                        self.local_community.append((new_species[0], False))
+                        self.divergence_times[(new_species[0], False)] = self.current_time
+                        self.colonizations += 1
+                        unique = 1
     
                         if idiot_count > MAX_DUPLICATE_REDRAWS_FROM_METACOMMUNITY:
-                            msg = """Metacommunity is exhausted w/ respect to local
+                            msg = """\nMetacommunity is exhausted w/ respect to local
                             community. Either expand the size of the metacommunity,
                             decrease the carrying capacity, or switch on multiple
                             migration (unimplemented)."""
-                            sys.exit()
+                            sys.exit(msg)
                         idiot_count +=1
                     else:
                         self.local_community.append((new_species[0], False))

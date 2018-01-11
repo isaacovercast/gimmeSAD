@@ -970,7 +970,7 @@ def parse_command_line():
         help="Carrying capacity of the island (max # individuals in the local community")
 
     parser.add_argument('-m', metavar='meta', dest="meta", type=str,
-        default="metacommunity_LS4.txt",
+        default="logser",
         help="Source metacommunity from file or generate uniform")
 
     parser.add_argument('-n', metavar='nsims', dest="nsims", type=int,
@@ -1015,7 +1015,7 @@ def parse_command_line():
     args = parser.parse_args()
 
     ## Check args
-    if not args.meta == "uniform":
+    if not args.meta in ["logser", "uniform"]:
         if not os.path.exists(args.meta):
             parser.print_help()
             sys.exit("Metacommunity file doesn't exist - {}".format(args.meta))
