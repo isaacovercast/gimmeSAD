@@ -31,7 +31,7 @@ if __name__ == "__main__":
         SIM_DIRECTORY="1d_sims"
         DATA_MODEL=2
     else:
-        SIM_DIRECTORY="2d_sims"
+        SIM_DIRECTORY="expanding-2d_sims"
         DATA_MODEL=4
     #RECORDING_INTERVAL = NSIMS/100
     if not os.path.exists(SIM_DIRECTORY):
