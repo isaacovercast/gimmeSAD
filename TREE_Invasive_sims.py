@@ -94,15 +94,8 @@ if __name__ == "__main__":
     #NSIMS=1000000
     ## Run all the way to double equilibrium
     NSIMS=0
-    try:
-        if sys.argv[1] == "1":
-            SIM_DIRECTORY="1d_sims"
-            DATA_MODEL=2
-        else:
-            SIM_DIRECTORY="2d_sims"
-            DATA_MODEL=4
-    except:
-        sys.exit("You need to tell it either 1D or 2D like this `./do_replicates.py 2`")
+    SIM_DIRECTORY="invasion_sims"
+    DATA_MODEL=4
     
     if not os.path.exists(SIM_DIRECTORY):
         os.mkdir(SIM_DIRECTORY)
