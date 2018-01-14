@@ -3,6 +3,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import collections      # For Counter
+import itertools
 import msprime
 import names
 import math
@@ -16,7 +17,7 @@ class species(object):
         self.name = names.names().get_name()
         self.uuid = UUID
         self.abundance = abundance
-        self.alpha = 1000
+        self.alpha = 100000
         self.local_Ne = self.abundance * self.alpha
         self.meta_abundance = meta_abundance * 1000
         #self.colonization_time = np.log(colonization_time)
@@ -33,7 +34,7 @@ class species(object):
         #self.r_island = -np.log(100./self.local_Ne)/self.colonization_time
         ## This one works okay.
         if exponential:
-            self.r_island = -np.log(10./self.local_Ne)/self.colonization_time
+            self.r_island = -np.log(1./self.local_Ne)/self.colonization_time
         else:
             self.r_island = 0
 
@@ -46,6 +47,7 @@ class species(object):
         self.pi_meta = 0
         self.pi_net = 0
         self.dxy = 0
+        self.tajD = 0
 
     def __str__(self):
         return "<species {}/coltime {}/local Ne {}/meta Ne {}/pi_island {}/pi_meta {}/dxy {}/S_island {}/S_meta {}>".format(self.name, self.colonization_time,\
@@ -136,9 +138,54 @@ class species(object):
             self.simulate_seqs()
             self.get_sumstats()
 
+        self.tajD = tajD_island(island_haps, self.S_island)
+
     def update_abundance(self, abund):
         self.abundance = abund
         self.local_Ne = abund * self.alpha
+
+
+def tajD_island(haplotypes, S):
+    if len(haplotypes) == 0:
+        return 0
+    if not any(haplotypes):
+        return 0
+    if S == 0:
+        return 0
+    d_num = pairwise_diffs(haplotypes) - watt_theta(len(haplotypes), S)
+    ddenom = tajD_denom(len(haplotypes), S)
+    if ddenom == 0:
+        D = 0
+    else:
+        D = d_num/ddenom
+        #print("nhaps {} nuniq {} S {} D {} num {} denom {}".format(len(haplotypes), len(set(haplotypes)), S, D, d_num, ddenom))
+    return D
+
+
+def pairwise_diffs(haplotypes):
+    tot = 0
+    for count, i in enumerate(itertools.combinations(haplotypes,2)):
+        tot += sum(a != b for (a,b) in zip(i[0], i[1]))
+    ## Number of comparisons is count + 1 bcz enumerate starts at 0
+    return tot/float(count+1)
+
+def watt_theta(n, S):
+    return S/sum([1./x for x in xrange(1,n)])
+
+## Fuckin helps if you do it right. This page has a nice worked example with values for each
+## subfunction so you can check your equations:
+## https://ocw.mit.edu/courses/health-sciences-and-technology/hst-508-quantitative-genomics-fall-2005/study-materials/tajimad1.pdf
+def tajD_denom(n, S):
+    b1 = (n+1)/float(3*(n-1))
+    a1 = sum([1./x for x in xrange(1, n)])
+    c1 = b1 - (1./a1)
+    e1 = c1/a1
+    a2 = sum([1./(x**2) for x in xrange(1, n)])
+    b2 = (2.*(n**2 + n + 3))/(9*n*(n-1))
+    c2 = b2 - (n+2)/(a1*n) + (a2/(a1**2))
+    e2 = c2/(a1**2+a2)
+    ddenom = math.sqrt(e1*S + e2*S*(S-1))
+    return ddenom
 
 def get_pi(haplotypes):
     ## If no seg sites in a pop then haplotypes will be 0 length
