@@ -254,11 +254,16 @@ def tabulate_sumstats(data):
 
     #print("Species colonization times (in generations):\n{}".format([x.colonization_time for x in sp]))
     #print("Species Ne:\n{}".format([x.Ne for x in sp]))
-    headers = ["Species Name", "Col time", "Loc Abund", "Meta Abund", "pi", "pi_net", "Dxy",  "S", "S_island", "pi_island", "S_meta", "pi_meta"]
-    acc = [[s.name, s.colonization_time, s.abundance, int(s.meta_abundance), s.pi, s.pi_net, s.dxy, s.S, s.S_island, s.pi_island, s.S_meta, s.pi_meta] for s in sp]
+    headers = ["Species Name", "Col time", "Loc Abund", "Meta Abund", "pi", "pi_net", "Dxy",  "S", "S_island", "pi_island", "tajD_island", "S_meta", "pi_meta"]
+    acc = [[s.name, s.colonization_time, s.abundance, int(s.meta_abundance), s.pi, s.pi_net, s.dxy, s.S, s.S_island, s.pi_island, s.tajD, s.S_meta, s.pi_meta] for s in sp]
 
     return tabulate(acc, headers, floatfmt=".4f")
 
+
+def write_megalog(megalogfile, i, percent_equil, data):
+    sp = data.get_species()
+    acc = [[s.uuid[0], s.colonization_time, s.abundance, int(s.meta_abundance), s.pi, s.pi_net, s.dxy, s.S, s.S_island, s.pi_island, s.tajD, s.S_meta, s.pi_meta] for s in sp]
+    megalogfile.write("\n".join(["{}\t{}\t{}".format(percent_equil, i, "\t".join(map(str, s))) for s in acc]) + "\n")
 
 ## This actually is doing pi x dxy, but some of the variable
 ## names are goofy cuz i developed it for pi x pi_w_island 
@@ -1094,10 +1099,13 @@ if __name__ == "__main__":
         out = open(os.path.join(args.outdir, "pi_x_dxy.log"), "w")
         yoyofile = open(os.path.join(args.outdir, "sizechange_through_time.log"), 'w')
         stats = open(os.path.join(args.outdir, "sumstats.txt"), 'w')
-        coltimefile = open(os.path.join(args.outdir, "coltimes.txt"), 'w')
         abundacesfile = open(os.path.join(args.outdir, "abundances.txt"), 'w')
         pidxyfile = open(os.path.join(args.outdir, "pidxy.txt"), 'w')
         extfile = open(os.path.join(args.outdir, "extinction_times.txt"), "w")
+        megalogfile = open(os.path.join(args.outdir, "megalog.txt"), "w")
+        ## write header
+        megalogfile.write("\t".join(["%eq", "step", "Species_uuid", "Col_time", "Loc_Abund", "Meta_Abund", "pi", "pi_net", "Dxy",  "S", "S_island", "pi_island", "tajD_island", "S_meta", "pi_meta"]))
+        megalogfile.write("\n")
 
         ## Make the output file properly formatted for this model and return the file object
         make_outputfile(args.model, stats)
@@ -1205,11 +1213,13 @@ if __name__ == "__main__":
                                                     shannon(data.get_abundances(octaves=False))) + heatmap_pi_dxy_ascii(data, labels=True)+"\n")
             diversity_stats = dict([(s.uuid[0], (s.pi, s.dxy)) for s in data.get_species()])
 
-            coltimefile.write("{} {} {}\n".format(percent_equil, i, data.divergence_times.items()))
             abundacesfile.write("{} {}\n".format(percent_equil, data.get_abundances(octaves=False)))
             pidxyfile.write("{} pi {}\n".format(percent_equil, [s.pi_island for s in data.get_species()]))
             pidxyfile.write("{} dxy {}\n".format(percent_equil, [s.dxy for s in data.get_species()]))
             extfile.write("{} {}\n".format(percent_equil, " ".join([str(x) for x in data.extinction_times])))
+
+            write_megalog(megalogfile, i, percent_equil, data)
+
             ## blank extinction times
             data.extinction_times = []
 
