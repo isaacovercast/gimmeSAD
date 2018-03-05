@@ -54,6 +54,8 @@ class implicit_BI(object):
         self.local_community = []
         self.local_inds = K
         self.divergence_times = {}
+        ## Track number of secondary colonization events per species
+        self.post_colonization_migrants = {}
 
         self.extinctions = 0
         self.colonizations = 0
@@ -189,6 +191,8 @@ class implicit_BI(object):
             if True:
                 self.extinctions += 1
                 try:
+                    ## reset 
+                    self.post_colonization_migrants[victim[0]] = 0
                     self.extinction_times.append(self.current_time - self.divergence_times[victim])
                 except:
                     ## The empty deme will make this freak
@@ -241,7 +245,13 @@ class implicit_BI(object):
         new_species = self.species[np.where(migrant_draw == 1)[1][0]]
         if new_species[0] in [x[0] for x in self.local_community]:
             #print("Multiple colonization: sp id {}".format(new_species[0]))
+            ## This is a post-colonization migrant so record the event and tell downstream
+            ## not to update the colonization time.
+            self.post_colonization_migrants[new_species[0]] += 1
             init_col = False
+        else:
+            ## This is a new migrant so init the post-colonization count
+            self.post_colonization_migrants[new_species[0]] = 0
 
         return new_species, init_col
 
