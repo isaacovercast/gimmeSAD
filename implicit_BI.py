@@ -48,6 +48,7 @@ class implicit_BI(object):
 
         self.maxabundance = 0
         self.colonization_rate = colrate
+        self.allow_multiple_colonizations = False
 
         ## Variables for tracking the local community
         self.local_community = []
@@ -69,25 +70,59 @@ class implicit_BI(object):
         self.survived_invasives = 0
         self.invasion_time = 0
 
-    def set_metacommunity(self, infile):
+        ###########################################################
+        ## Variables for non-neutral assembly processes
+        ## Note all non-neutral assembly value defaults result
+        ## in neutral processes.
+        ###########################################################
+
+        ## An ID by trait value dictionary
+        self.species_trait_values = {}
+
+        ## Toggle competitive exclusion
+        self.competitive_exclusion = False
+
+        ## Toggle environmental filtering
+        self.environmental_filtering = False
+        self.environmental_optimum = 0
+
+
+    def set_metacommunity(self, infile, random=False):
         """
         For setting the metacommunity you can either generate a random
         uniform community or read on in from a file that's basically just
         a long list of abundances (as ints). Abundances are set from one
         of these locations then the species labels and immigration probs
         are calculated from there
+
+        random=True will set random trait values in the range [0-1]
         """
         if infile == "logser":
             ## Parameter of the logseries distribution
             p = .98
             self.abundances = logser.rvs(p, size=self.local_inds)
+            if random:
+                self.species_trait_values = {x:y for x,y in enumerate(np.random.rand(self.uniform_species))}
+            else:
+                self.species_trait_values = {x:y for x,y in enumerate(np.zeros(len(self.abundances)))}
+
         elif infile == "uniform":
             #for i in range(self.uniform_inds):
             self.abundances = [self.uniform_inds] * self.uniform_species
+            if random:
+                self.species_trait_values = {x:y for x,y in enumerate(np.random.rand(self.uniform_species))}
+            else:
+                self.species_trait_values = {x:y for x,y in enumerate(np.zeros(len(self.abundances)))}
         else:
             if os.path.isfile(infile):
                 with open(infile, 'r') as inf:
                     self.abundances = [int(line.split()[0]) for line in inf]
+                    ## Try fetching traits as well. If there are no traits then assume we're not doing trait based
+                    try:
+                        inf.seek()
+                        self.species_trait_values = {x:y for x,y in enumerate([float(line.split()[1]) for line in inf])}
+                    except:
+                        self.species_trait_values = {x:y for x,y in enumerate(np.zeros(len(self.abundances)))}
             else:
                 raise Exception("Bad metacommunity input - ".format(infile))
 
@@ -133,84 +168,117 @@ class implicit_BI(object):
                 self.local_community.append((None,True))
             self.divergence_times[new_species] = 1
 
+    def death_step(self, invasion_time, invasiveness):
+        ## Select the individual to die
+        victim = random.choice(self.local_community)
+        ## If no invasive hasn't invaded then just do the normal sampling
+        if self.invasive == -1:
+            self.local_community.remove(victim)
+        else:
+            ## If invasiveness is less than the random value remove the invasive individual
+            ## else choose a new individual
+            if victim == self.invasive and np.random.rand() < invasiveness:
+                self.survived_invasives += 1
+                victim = random.choice(self.local_community)
+            self.local_community.remove(victim)
+        ## Record local extinction events
+        if not victim in self.local_community:
+            ## This was supposed to not record "extinctions" of empty deme space
+            ## but it fucks up the calculation of extinction rate
+            ##if not victim[0] == None:
+            if True:
+                self.extinctions += 1
+                try:
+                    self.extinction_times.append(self.current_time - self.divergence_times[victim])
+                except:
+                    ## The empty deme will make this freak
+                    pass
+            ## If the invasive prematurely goes extinct just pick a new one
+            if victim == self.invasive:
+                print("invasive went extinct")
+                self.invasive = -1
+
+    def migrate_no_dupes_step(self):
+        ## Loop until you draw species unique in the local community
+        ## The flag to tell 'while when we're done, set when you successfully 
+        ## draw a non-local-doop from the metacommunity
+        unique = 0
+
+        ## If you set your carrying capacity too high relative to the size of your
+        ## metacommunity then you'll get stuck drawing duplicates over and over
+        idiot_count = 0
+        while not unique:
+            ## Sample from the metacommunity
+            migrant_draw = np.random.multinomial(1, self.immigration_probabilities, size=1)
+            #print("Immigration event - {}".format(np.where(migrant_draw == 1)))
+            #print("Immigrant - {}".format(self.species[np.where(migrant_draw == 1)[1][0]]))
+            new_species = self.species[np.where(migrant_draw == 1)[1][0]]
+            ##TODO: Should set a flag to guard whether or not to allow multiple colonizations
+            if new_species[0] not in [x[0] for x in self.local_community]:
+                ## Got a species not in the local community
+                unique = 1
+            else:
+                #print("multiple colonization forbidden: sp id {}".format(new_species[0]))
+                idiot_count +=1
+            if idiot_count > MAX_DUPLICATE_REDRAWS_FROM_METACOMMUNITY:
+               msg = """\nMetacommunity is exhausted w/ respect to local
+               community. Either expand the size of the metacommunity,
+               decrease the carrying capacity, or switch on multiple
+               migration (unimplemented)."""
+               sys.exit(msg)
+
+        return new_species
+
+    def migrate_step(self):
+        """ Allow multiple colonizations. In this case we return the sampled species
+        as well as a bool reporting whether or not this is the first colonization of
+        this species into the local community so that the coltime can be recorded.
+        multiple colonizations of a species do not update coltime, but we record them
+        for migration rate calculation."""
+
+        init_col = True
+        migrant_draw = np.random.multinomial(1, self.immigration_probabilities, size=1)
+        new_species = self.species[np.where(migrant_draw == 1)[1][0]]
+        if new_species[0] in [x[0] for x in self.local_community]:
+            #print("Multiple colonization: sp id {}".format(new_species[0]))
+            init_col = False
+
+        return new_species, init_col
+
 
     def step(self, nsteps=1, time=0, invasion_time=100000, invasiveness=0.1):
         for step in range(nsteps):
             ## If there are any members of the local community
             if self.local_community:
-                ## Select the individual to die
-                victim = random.choice(self.local_community)
-                ## If no invasive hasn't invaded then just do the normal sampling
-                if self.invasive == -1:
-                    self.local_community.remove(victim)
-                else:
-                    ## If invasiveness is less than the random value remove the invasive individual
-                    ## else choose a new individual
-                    if victim == self.invasive and np.random.rand() < invasiveness:
-                        self.survived_invasives += 1
-                        victim = random.choice(self.local_community)
-                    self.local_community.remove(victim)
-                ## Record local extinction events
-                if not victim in self.local_community:
-                    ## This was supposed to not record "extinctions" of empty deme space
-                    ## but it fucks up the calculation of extinction rate
-                    ##if not victim[0] == None:
-                    if True:
-                        self.extinctions += 1
-                        try:
-                            self.extinction_times.append(self.current_time - self.divergence_times[victim])
-                        except:
-                            ## The empty deme will make this freak
-                            pass
-                    ## If the invasive prematurely goes extinct just pick a new one
-                    if victim == self.invasive:
-                        print("invasive went extinct")
-                        self.invasive = -1
+                ## Do the magic to remove one individual from the local community
+                ## After this function returns K = K - 1
+                self.death_step(invasion_time, invasiveness)
 
             ## Check probability of an immigration event
             if np.random.random_sample() < self.colonization_rate:
-    
-                ## Loop until you draw species unique in the local community
-                ## The flag to tell 'while when we're done, set when you successfully 
-                ## draw a non-local-doop from the metacommunity
-                unique = 0
-    
-                ## If you set your carrying capacity too high relative to the size of your
-                ## metacommunity then you'll get stuck drawing duplicates over and over
-                idiot_count = 0
-                while not unique:
-                    ## Sample from the metacommunity
-                    migrant_draw = np.random.multinomial(1, self.immigration_probabilities, size=1)
-                    #print("Immigration event - {}".format(np.where(migrant_draw == 1)))
-                    #print("Immigrant - {}".format(self.species[np.where(migrant_draw == 1)[1][0]]))
-                    new_species = self.species[np.where(migrant_draw == 1)[1][0]]
-                    ##TODO: Should set a flag to guard whether or not to allow multiple colonizations
-                    if new_species[0] in [x[0] for x in self.local_community]:
-                        #print("multiple colonization events are forbidden, for now")
-                        new_species = (self.current_time, new_species[1])
-                        self.species.append(new_species)
-                        self.local_community.append((new_species[0], False))
-                        self.divergence_times[(new_species[0], False)] = self.current_time
-                        self.colonizations += 1
-                        unique = 1
-    
-                        if idiot_count > MAX_DUPLICATE_REDRAWS_FROM_METACOMMUNITY:
-                            msg = """\nMetacommunity is exhausted w/ respect to local
-                            community. Either expand the size of the metacommunity,
-                            decrease the carrying capacity, or switch on multiple
-                            migration (unimplemented)."""
-                            sys.exit(msg)
-                        idiot_count +=1
-                    else:
-                        ## Only set the invasive species once at the time of next migration post invasion time
-                        if self.invasive == -1 and time >= invasion_time and not invasion_time < 0:
-                            self.invasive = (new_species[0], False)
-                            print("setting invasive species {} at time {}".format(self.invasive, self.current_time))
-                            self.invasion_time = self.current_time
-                        self.local_community.append((new_species[0], False))
-                        self.divergence_times[(new_species[0], False)] = self.current_time
-                        self.colonizations += 1
-                        unique = 1
+
+                ## Grab the new colonizing species
+                init_colonization = True
+                if self.allow_multiple_colonizations:
+                    new_species, init_colonization = self.migrate_step()
+                else:
+                    new_species = self.migrate_no_dupes_step()
+
+                ## Only record coltime if this is the first time this species enters the local community 
+                if init_colonization:
+                    self.divergence_times[(new_species[0], False)] = self.current_time
+
+                ## Only set the invasive species once at the time of next migration post invasion time
+                ## If invasion time is < 0 this means "Don't do invasive"
+                if not invasion_time < 0:
+                    if self.invasive == -1 and time >= invasion_time:
+                        self.invasive = (new_species[0], False)
+                        print("setting invasive species {} at time {}".format(self.invasive, self.current_time))
+                        self.invasion_time = self.current_time
+
+                ## Add the colonizer to the local community, record the colonization time
+                self.local_community.append((new_species[0], False))
+                self.colonizations += 1
             else:
                 ## Sample from the local community, including empty demes
                 ## Sample all available from local community (community grows slow in volcanic model)
