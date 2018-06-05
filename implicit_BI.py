@@ -25,7 +25,7 @@ class implicit_BI(object):
     with an individual sample, used to combine samples 
     into Assembly objects."""
 
-    def __init__(self, K=5000, colrate=0.01, exponential=False, quiet=False):
+    def __init__(self, K=5000, colrate=0.01, allow_multiple_colonization=True, exponential=False, quiet=False):
         self.quiet = quiet
 
         ## List for storing species objects that have had sequence
@@ -53,6 +53,9 @@ class implicit_BI(object):
         self.local_community = []
         self.local_inds = K
         self.divergence_times = {}
+        self.migrants = {}
+        self.abundances_through_time = {}
+        self.allow_multiple_colonization = True
 
         self.extinctions = 0
         self.colonizations = 0
@@ -104,6 +107,15 @@ class implicit_BI(object):
         return "<implicit_BI {}>".format(self.name)
 
 
+    ## Every recording period log abundances per species in the local community
+    def _log(self):
+        for sp in set(self.local_community):
+            if sp in self.abundances_through_time:
+                self.abundances_through_time[sp].append(self.local_community.count(sp))
+            else:
+                self.abundances_through_time[sp] = [self.local_community.count(sp)]
+
+
     def prepopulate(self, mode="landbridge"):
         if mode == "landbridge":
             ## prepopulate the island w/ total_inds individuals sampled from the metacommunity
@@ -120,7 +132,9 @@ class implicit_BI(object):
 
             ## All species diverge simultaneously upon creation of the island.
             for taxon in self.local_community:
-                self.divergence_times[taxon] = 1
+                self.divergence_times[taxon[0]] = 1
+                self.migrants[taxon[0]] = 0
+                self.abundances_through_time[taxon[0]] = self.local_community.count(taxon)
         else:
             ## If not landbridge then doing volcanic, so sample just the most abundant
             ## from the metacommunity
@@ -131,7 +145,9 @@ class implicit_BI(object):
             self.local_community.append(new_species)
             for i in range(1,self.local_inds):
                 self.local_community.append((None,True))
-            self.divergence_times[new_species] = 1
+            self.divergence_times[new_species[0]] = 1
+            self.migrants[new_species[0]] = 0
+            self.abundances_through_time[new_species[0]] = 1
 
 
     def step(self, nsteps=1, time=0, invasion_time=100000, invasiveness=0.1):
@@ -166,6 +182,10 @@ class implicit_BI(object):
                     if victim == self.invasive:
                         print("invasive went extinct")
                         self.invasive = -1
+                    ## blank all the recording for the extinct species
+                    self.divergence_times[victim] = 0
+                    self.migrants[victim[0]] = 0
+                    self.abundances_through_time[victim[0]] = []
 
             ## Check probability of an immigration event
             if np.random.random_sample() < self.colonization_rate:
@@ -187,11 +207,16 @@ class implicit_BI(object):
                     ##TODO: Should set a flag to guard whether or not to allow multiple colonizations
                     if new_species[0] in [x[0] for x in self.local_community]:
                         #print("multiple colonization events are forbidden, for now")
-                        new_species = (self.current_time, new_species[1])
-                        self.species.append(new_species)
+                        if self.allow_multiple_colonization:
+                            self.migrants[new_species[0]] += 1
+                        else:
+                            new_species = (self.current_time, new_species[1])
+                            self.species.append(new_species)
+                            self.divergence_times[(new_species[0], False)] = self.current_time
+                            self.colonizations += 1
+                            self.migrants[new_species[0]] = 0
+                            self.abundances_through_time[new_species[0]] = [1]
                         self.local_community.append((new_species[0], False))
-                        self.divergence_times[(new_species[0], False)] = self.current_time
-                        self.colonizations += 1
                         unique = 1
     
                         if idiot_count > MAX_DUPLICATE_REDRAWS_FROM_METACOMMUNITY:
@@ -209,6 +234,8 @@ class implicit_BI(object):
                             self.invasion_time = self.current_time
                         self.local_community.append((new_species[0], False))
                         self.divergence_times[(new_species[0], False)] = self.current_time
+                        self.migrants[new_species[0]] = 0
+                        self.abundances_through_time[new_species[0]] = [1]
                         self.colonizations += 1
                         unique = 1
             else:
@@ -312,7 +339,8 @@ class implicit_BI(object):
                 #print(self.local_community)
                 self.species_objects.append(species(UUID=UUID, colonization_time=self.current_time - tdiv,\
                                         exponential=self.exponential, abundance=abundance,\
-                                        meta_abundance=meta_abundance))
+                                        meta_abundance=meta_abundance, migration_rate=self.migrants[UUID[0]]/(self.current_time - tdiv),\
+                                        abundances_through_time=self.abundances_through_time[UUID[0]]))
 
         for s in self.species_objects:
             s.simulate_seqs()

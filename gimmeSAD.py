@@ -254,8 +254,8 @@ def tabulate_sumstats(data):
 
     #print("Species colonization times (in generations):\n{}".format([x.colonization_time for x in sp]))
     #print("Species Ne:\n{}".format([x.Ne for x in sp]))
-    headers = ["Species Name", "Col time", "Loc Abund", "Meta Abund", "pi", "pi_net", "Dxy",  "S", "S_island", "pi_island", "tajD_island", "S_meta", "pi_meta"]
-    acc = [[s.name, s.colonization_time, s.abundance, int(s.meta_abundance), s.pi, s.pi_net, s.dxy, s.S, s.S_island, s.pi_island, s.tajD, s.S_meta, s.pi_meta] for s in sp]
+    headers = ["Species Name", "Col time", "mig_rate", "Loc Abund", "Meta Abund", "pi", "pi_net", "Dxy",  "S", "S_island", "pi_island", "tajD_island", "S_meta", "pi_meta"]
+    acc = [[s.name, s.colonization_time, s.migration_rate, s.abundance, int(s.meta_abundance), s.pi, s.pi_net, s.dxy, s.S, s.S_island, s.pi_island, s.tajD, s.S_meta, s.pi_meta] for s in sp]
 
     return tabulate(acc, headers, floatfmt=".4f")
 
@@ -1040,7 +1040,7 @@ def parse_command_line():
     parser.add_argument('-f', "--force", action='store_true',
         help="force overwrite of existing data")
     parser.add_argument('--version', action='version',
-        version="0.0.0.1")
+        version="0.0.1")
 
     ## parse args
     args = parser.parse_args()
@@ -1202,6 +1202,7 @@ if __name__ == "__main__":
         ## Recording data every once in a while
         if not i % recording_period and not i == 0: 
             ## Every once in a while write out useful info
+            data._log()
             data.simulate_seqs()
             sp_through_time[i] = data.get_species()
             ## Save a copy of the local_community

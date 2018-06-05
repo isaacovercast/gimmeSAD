@@ -7,17 +7,20 @@ import itertools
 import msprime
 import names
 import math
+from scipy.stats import hmean
 # pylint: disable=C0103
 # pylint: disable=R0903
 
 
 class species(object):
 
-    def __init__(self, UUID = "", exponential = False, abundance = 1, meta_abundance = 1, colonization_time = 0):
+    def __init__(self, UUID = "", exponential = False, harmonic = True,\
+                 abundance = 1, meta_abundance = 1, colonization_time = 0,\
+                 migration_rate = 0, abundances_through_time=[]):
         self.name = names.names().get_name()
         self.uuid = UUID
         self.abundance = abundance
-        self.alpha = 100000
+        self.alpha = 10000
         self.local_Ne = self.abundance * self.alpha
         self.meta_abundance = meta_abundance * 1000
         #self.colonization_time = np.log(colonization_time)
@@ -29,7 +32,9 @@ class species(object):
         self.tree_sequence = []
         self.island_sample_size = 10
         self.meta_sample_size = 10
+        self.abundances_through_time = abundances_through_time
 
+        self.migration_rate = migration_rate
         ## Need to calculate the growth rate
         #self.r_island = -np.log(100./self.local_Ne)/self.colonization_time
         ## This one works okay.
@@ -37,6 +42,11 @@ class species(object):
             self.r_island = -np.log(1./self.local_Ne)/self.colonization_time
         else:
             self.r_island = 0
+
+        ## If doing harmonic mean of abundances, calculate it here
+        if harmonic:
+            self.local_Ne = int(hmean(np.array(self.abundances_through_time)*self.alpha))
+
 
         ## Stats
         self.pi = 0
@@ -61,6 +71,9 @@ class species(object):
         if self.Ne <= 0:
             self.Ne = 100
         
+        migmat = [[0, self.migration_rate],
+                    [0, 0]]
+
         island_pop = msprime.PopulationConfiguration(sample_size=self.island_sample_size,\
                                                     initial_size=self.local_Ne,
                                                     growth_rate=self.r_island)
@@ -77,17 +90,19 @@ class species(object):
                                                                         population_id=0)
 
         island_size_change_event = msprime.PopulationParametersChange(time=self.colonization_time-1,\
-                                                                        initial_size=0,\
+                                                                        initial_size=1,\
                                                                         population_id=0)
 
         ## Useful for debugging demographic events. Mass migration and exponetial growth are both working.
         #print(self.name, self.colonization_time)
         debug = msprime.DemographyDebugger(population_configurations=[island_pop, meta_pop],\
-                                           demographic_events=[island_rate_change_event, split_event])
+                                           demographic_events=[island_rate_change_event, split_event],
+                                           migration_matrix=migmat)
         #debug.print_history()
 
         self.tree_sequence = msprime.simulate(length=self.sequence_length,\
                                                 Ne=self.local_Ne,\
+                                                migration_matrix=migmat,\
                                                 mutation_rate=self.mutation_rate, \
                                                 population_configurations=[island_pop, meta_pop],\
                                                 demographic_events=[island_size_change_event, island_rate_change_event, split_event])
