@@ -45,8 +45,11 @@ class species(object):
 
         ## If doing harmonic mean of abundances, calculate it here
         if harmonic:
-            self.local_Ne = int(hmean(np.array(self.abundances_through_time)*self.alpha))
-
+            try:
+                self.local_Ne = int(hmean(np.array(self.abundances_through_time)*self.alpha))
+            except:
+                print(self.abundances_through_time)
+                raise
 
         ## Stats
         self.pi = 0

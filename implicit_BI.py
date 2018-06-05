@@ -322,6 +322,7 @@ class implicit_BI(object):
                 self.species_objects[i] = s
 
     def simulate_seqs(self):
+        self._log()
         self.species_objects = []
         ## Setting colonization_time as a scaling factor rather than as a raw tdiv
         ## The old way of doing this is `self.current_time - tdiv`

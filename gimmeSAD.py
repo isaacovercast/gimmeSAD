@@ -1100,6 +1100,7 @@ if __name__ == "__main__":
         yoyofile = open(os.path.join(args.outdir, "sizechange_through_time.log"), 'w')
         stats = open(os.path.join(args.outdir, "sumstats.txt"), 'w')
         abundacesfile = open(os.path.join(args.outdir, "abundances.txt"), 'w')
+        coltimefile = open(os.path.join(args.outdir, "coltimes.txt"), 'w')
         pidxyfile = open(os.path.join(args.outdir, "pidxy.txt"), 'w')
         extfile = open(os.path.join(args.outdir, "extinction_times.txt"), "w")
         megalogfile = open(os.path.join(args.outdir, "megalog.txt"), "w")
@@ -1214,6 +1215,7 @@ if __name__ == "__main__":
                                                     shannon(data.get_abundances(octaves=False))) + heatmap_pi_dxy_ascii(data, labels=True)+"\n")
             diversity_stats = dict([(s.uuid[0], (s.pi, s.dxy)) for s in data.get_species()])
 
+            coltimefile.write("{} {} {}\n".format(percent_equil, i, data.divergence_times.values()))
             abundacesfile.write("{} {}\n".format(percent_equil, data.get_abundances(octaves=False)))
             pidxyfile.write("{} pi {}\n".format(percent_equil, [s.pi_island for s in data.get_species()]))
             pidxyfile.write("{} dxy {}\n".format(percent_equil, [s.dxy for s in data.get_species()]))
