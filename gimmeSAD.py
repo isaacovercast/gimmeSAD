@@ -1207,6 +1207,8 @@ if __name__ == "__main__":
             data.simulate_seqs()
             sp_through_time[i] = data.get_species()
             ## Save a copy of the local_community
+            founder_flags = [x[1] for x in data.local_community]
+            percent_equil = float(founder_flags.count(False))/len(founder_flags)            
             equilibria[i] = percent_equil
             if args.bottleneck < 1:
                 tmp_local = data.local_community
@@ -1215,7 +1217,12 @@ if __name__ == "__main__":
                                                     shannon(data.get_abundances(octaves=False))) + heatmap_pi_dxy_ascii(data, labels=True)+"\n")
             diversity_stats = dict([(s.uuid[0], (s.pi, s.dxy)) for s in data.get_species()])
 
-            coltimefile.write("{} {} {}\n".format(percent_equil, i, data.divergence_times.values()))
+            coltimes = np.array(data.divergence_times.values())
+            ## Kill zero value colonization times
+            coltimes = coltimes[coltimes>0]
+            ## Turn colonization times into actual duration of time present in the community
+            coltimes = i - coltimes
+            coltimefile.write("{} {} {}\n".format(percent_equil, i, coltimes.tolist()))
             abundacesfile.write("{} {}\n".format(percent_equil, data.get_abundances(octaves=False)))
             pidxyfile.write("{} pi {}\n".format(percent_equil, [s.pi_island for s in data.get_species()]))
             pidxyfile.write("{} dxy {}\n".format(percent_equil, [s.dxy for s in data.get_species()]))
@@ -1252,7 +1259,7 @@ if __name__ == "__main__":
     if not reached_equilib:
         founder_flags = [x[1] for x in data.local_community]
         percent_equil = float(founder_flags.count(False))/len(founder_flags)
-        print("How close to equilibrium? {}".format(percent_equil))
+        print("\nHow close to equilibrium? {}".format(percent_equil))
     
     ## When finished simulate the final set of sequences
     data.simulate_seqs()
