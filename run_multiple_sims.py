@@ -19,6 +19,8 @@ import os
 #$ (time ls) > outfile 2>&1
 #$ (time ls) > ls_results 2> time_results
 
+data_model = 2
+niters = 5
 if __name__ == "__main__":
     ## 1e6 sims normally just barely gets to equilibrium for most models
     #NSIMS=1000000
@@ -29,11 +31,11 @@ if __name__ == "__main__":
     if not os.path.exists(SIM_DIRECTORY):
         os.mkdir(SIM_DIRECTORY)
 
-    for j in xrange(10):
+    for j in xrange(niters):
         print("iteration {}".format(j))
         ## Sample from uniform distribution
-        col_rates = [0.03]
-        k_vals = [5000] 
+        col_rates = [0.005]
+        k_vals = [3000] 
     
         FNULL = open(os.devnull, 'w')
         for i in xrange(10):
@@ -50,7 +52,7 @@ if __name__ == "__main__":
                             + " -c " + str(c)\
                             + " -k " + str(k)\
                             + " -o " + cursim_dir\
-                            + " --model=4 "\
+                            + " --model={} ".format(data_model)\
                             + " -q "
                             #+ " > /dev/null &"
                         proc = subprocess.Popen(cmd.split(), shell=False, stdout=FNULL)
@@ -77,3 +79,4 @@ if __name__ == "__main__":
                         done = True
                 except:
                     pass
+            #sys.exit()

@@ -1,0 +1,3 @@
+*.pyc
+ipython-notebooks/.ipynb_checkpoints/
+.ipynb_checkpoints/

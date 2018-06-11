@@ -110,10 +110,11 @@ class implicit_BI(object):
     ## Every recording period log abundances per species in the local community
     def _log(self):
         for sp in set(self.local_community):
+            idx = sp[0]
             if sp in self.abundances_through_time:
-                self.abundances_through_time[sp].append(self.local_community.count(sp))
+                self.abundances_through_time[idx].append(self.local_community.count(sp))
             else:
-                self.abundances_through_time[sp] = [self.local_community.count(sp)]
+                self.abundances_through_time[idx] = [self.local_community.count(sp)]
 
 
     def prepopulate(self, mode="landbridge"):
@@ -134,7 +135,7 @@ class implicit_BI(object):
             for taxon in self.local_community:
                 self.divergence_times[taxon[0]] = 1
                 self.migrants[taxon[0]] = 0
-                self.abundances_through_time[taxon[0]] = self.local_community.count(taxon)
+                self.abundances_through_time[taxon[0]] = [self.local_community.count(taxon)]
         else:
             ## If not landbridge then doing volcanic, so sample just the most abundant
             ## from the metacommunity
@@ -147,7 +148,7 @@ class implicit_BI(object):
                 self.local_community.append((None,True))
             self.divergence_times[new_species[0]] = 1
             self.migrants[new_species[0]] = 0
-            self.abundances_through_time[new_species[0]] = 1
+            self.abundances_through_time[new_species[0]] = [1]
 
 
     def step(self, nsteps=1, time=0, invasion_time=100000, invasiveness=0.1):
@@ -210,12 +211,15 @@ class implicit_BI(object):
                         if self.allow_multiple_colonization:
                             self.migrants[new_species[0]] += 1
                         else:
-                            new_species = (self.current_time, new_species[1])
-                            self.species.append(new_species)
-                            self.divergence_times[(new_species[0], False)] = self.current_time
+                            ## This is the "every migrant is a new species block of code. FUCK!
+                            #new_species = (self.current_time, new_species[1])
+                            #self.species.append(new_species)
+                            #self.divergence_times[(new_species[0], False)] = self.current_time
+                            #self.migrants[new_species[0]] = 0
+                            #self.abundances_through_time[new_species[0]] = [1]
+
                             self.colonizations += 1
-                            self.migrants[new_species[0]] = 0
-                            self.abundances_through_time[new_species[0]] = [1]
+                            self.migrants[new_species[0]] += 1
                         self.local_community.append((new_species[0], False))
                         unique = 1
     
@@ -334,13 +338,18 @@ class implicit_BI(object):
                 for x, y in self.species:
                     if UUID[0] == x:
                         meta_abundance = y
+                tdiv = self.current_time - tdiv
+                migration_rate = self.migrants[UUID[0]]/float(tdiv)
+
+                ## Scale time to K-steps per generation
+                tdiv = np.ceil(tdiv/float(self.local_inds))
                 #meta_abundance = [x[1] for x in self.abundances if x[0] == UUID[0]]
                 #meta_abundance = self.abundances[self.species.index(UUID[0])]
                 abundance = self.local_community.count(UUID)
                 #print(self.local_community)
-                self.species_objects.append(species(UUID=UUID, colonization_time=self.current_time - tdiv,\
+                self.species_objects.append(species(UUID=UUID, colonization_time=tdiv,\
                                         exponential=self.exponential, abundance=abundance,\
-                                        meta_abundance=meta_abundance, migration_rate=self.migrants[UUID[0]]/(self.current_time - tdiv),\
+                                        meta_abundance=meta_abundance, migration_rate=migration_rate,\
                                         abundances_through_time=self.abundances_through_time[UUID[0]]))
 
         for s in self.species_objects:

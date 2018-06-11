@@ -20,18 +20,18 @@ class species(object):
         self.name = names.names().get_name()
         self.uuid = UUID
         self.abundance = abundance
-        self.alpha = 10000
+        self.alpha = 10
         self.local_Ne = self.abundance * self.alpha
-        self.meta_abundance = meta_abundance * 1000
+        self.meta_abundance = meta_abundance * 100
         #self.colonization_time = np.log(colonization_time)
-        self.colonization_time = colonization_time
+        self.colonization_time = colonization_time * 100
         self.Ne = self.meta_abundance
-        self.mutation_rate = 0.000000022
+        self.mutation_rate = 0.00000022
 #        self.mutation_rate = 0.00000007
         self.sequence_length = 570
         self.tree_sequence = []
-        self.island_sample_size = 10
-        self.meta_sample_size = 10
+        self.island_sample_size = 5
+        self.meta_sample_size = 5
         self.abundances_through_time = abundances_through_time
 
         self.migration_rate = migration_rate
@@ -42,14 +42,6 @@ class species(object):
             self.r_island = -np.log(1./self.local_Ne)/self.colonization_time
         else:
             self.r_island = 0
-
-        ## If doing harmonic mean of abundances, calculate it here
-        if harmonic:
-            try:
-                self.local_Ne = int(hmean(np.array(self.abundances_through_time)*self.alpha))
-            except:
-                print(self.abundances_through_time)
-                raise
 
         ## Stats
         self.pi = 0
@@ -62,8 +54,19 @@ class species(object):
         self.dxy = 0
         self.tajD = 0
 
+        ## If doing harmonic mean of abundances, calculate it here
+        if harmonic:
+            try:
+                self.local_Ne = int(hmean(np.array(self.abundances_through_time)*self.alpha))
+            except Exception as inst:
+                print("Wat {}".format(inst))
+                print(self.abundances_through_time)
+                print(self)
+                # This dies sometimes
+                #raise
+
     def __str__(self):
-        return "<species {}/coltime {}/local Ne {}/meta Ne {}/pi_island {}/pi_meta {}/dxy {}/S_island {}/S_meta {}>".format(self.name, self.colonization_time,\
+        return "<species {}/coltime {}/local Ne {}/meta Ne {}/pi_island {}/pi_meta {}/dxy {}/S_island {}/S_meta {}>".format(self.uuid, self.colonization_time,\
                             self.local_Ne, self.Ne, self.pi_island, self.pi_meta, self.dxy, self.S_island, self.S_meta)
 
     def __repr__(self):
@@ -98,19 +101,34 @@ class species(object):
 
         ## Useful for debugging demographic events. Mass migration and exponetial growth are both working.
         #print(self.name, self.colonization_time)
-        debug = msprime.DemographyDebugger(population_configurations=[island_pop, meta_pop],\
+        try:
+            debug = msprime.DemographyDebugger(population_configurations=[island_pop, meta_pop],\
                                            demographic_events=[island_rate_change_event, split_event],
                                            migration_matrix=migmat)
+        except:
+            print(self)
+            raise
         #debug.print_history()
 
-        self.tree_sequence = msprime.simulate(length=self.sequence_length,\
-                                                Ne=self.local_Ne,\
+        try:
+            self.tree_sequence = msprime.simulate(length=self.sequence_length,\
                                                 migration_matrix=migmat,\
                                                 mutation_rate=self.mutation_rate, \
                                                 population_configurations=[island_pop, meta_pop],\
                                                 demographic_events=[island_size_change_event, island_rate_change_event, split_event])
+        except:
+            print(self)
 
         #self.tree_sequence = msprime.simulate(sample_size=10, Ne=self.Ne, length=self.sequence_length, mutation_rate=self.mutation_rate)
+
+        tree = self.tree_sequence.first()
+        colour_map = {0:"red", 1:"blue"}
+        node_colours = {u: colour_map[tree.population(u)] for u in tree.nodes()}
+        node_labels = {
+            u: (str(u) if u < 8 else "{} (t={:.2f})".format(u, tree.time(u)))
+            for u in tree.nodes()}
+        #tree.draw(path="/tmp/Ne:{}-tdiv:{}.svg".format(self.local_Ne, self.colonization_time, self.name.replace(" ", "_")), height=500, width=1000, node_labels=node_labels, node_colours=node_colours)
+
 
     def get_sumstats(self):
         self.pi = self.tree_sequence.get_pairwise_diversity() / self.sequence_length
@@ -151,10 +169,10 @@ class species(object):
         self.pi_net = self.dxy - (self.pi_island + self.pi_meta)/2
 
         ## Forbid biologically unrealistic values of pi
-        if self.pi_meta > 0.2 or self.pi_island > 0.2:
-            print("Bad pi {}".format(self))
-            self.simulate_seqs()
-            self.get_sumstats()
+        #if self.pi_meta > 0.2 or self.pi_island > 0.2:
+        #    print("Bad pi {}".format(self))
+        #    self.simulate_seqs()
+        #    self.get_sumstats()
 
         self.tajD = tajD_island(island_haps, self.S_island)
 

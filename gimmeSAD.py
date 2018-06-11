@@ -262,7 +262,7 @@ def tabulate_sumstats(data):
 
 def write_megalog(megalogfile, i, percent_equil, data):
     sp = data.get_species()
-    acc = [[s.uuid[0], s.colonization_time, s.abundance, int(s.meta_abundance), s.pi, s.pi_net, s.dxy, s.S, s.S_island, s.pi_island, s.tajD, s.S_meta, s.pi_meta] for s in sp]
+    acc = [[s.uuid[0], s.colonization_time, s.migration_rate, s.abundance, int(s.meta_abundance), s.pi, s.pi_net, s.dxy, s.S, s.S_island, s.pi_island, s.tajD, s.S_meta, s.pi_meta] for s in sp]
     megalogfile.write("\n".join(["{}\t{}\t{}".format(percent_equil, i, "\t".join(map(str, s))) for s in acc]) + "\n")
 
 ## This actually is doing pi x dxy, but some of the variable
@@ -1105,7 +1105,7 @@ if __name__ == "__main__":
         extfile = open(os.path.join(args.outdir, "extinction_times.txt"), "w")
         megalogfile = open(os.path.join(args.outdir, "megalog.txt"), "w")
         ## write header
-        megalogfile.write("\t".join(["%eq", "step", "Species_uuid", "Col_time", "Loc_Abund", "Meta_Abund", "pi", "pi_net", "Dxy",  "S", "S_island", "pi_island", "tajD_island", "S_meta", "pi_meta"]))
+        megalogfile.write("\t".join(["%eq", "step", "Species_uuid", "Col_time", "mig_rate", "Loc_Abund", "Meta_Abund", "pi", "pi_net", "Dxy",  "S", "S_island", "pi_island", "tajD_island", "S_meta", "pi_meta"]))
         megalogfile.write("\n")
 
         ## Make the output file properly formatted for this model and return the file object
