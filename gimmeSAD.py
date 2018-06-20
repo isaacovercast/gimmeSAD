@@ -150,7 +150,7 @@ def write_heats_to_outfile(model, stats, data, sp_through_time, equilibria):
 
 def write_outfile(model, stats, data, eq):
     ## Calculate some crap of interest
-    extrate data.extinctions/float(data.current_time)
+    extrate = data.extinctions/float(data.current_time)
     colrate = data.colonizations/float(data.current_time)
     shan = shannon(data.get_abundances(octaves=False))
 
