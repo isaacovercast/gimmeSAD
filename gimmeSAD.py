@@ -150,7 +150,7 @@ def write_heats_to_outfile(model, stats, data, sp_through_time, equilibria):
 
 def write_outfile(model, stats, data, eq):
     ## Calculate some crap of interest
-    extrate = data.extinctions/float(data.current_time)
+    extrate data.extinctions/float(data.current_time)
     colrate = data.colonizations/float(data.current_time)
     shan = shannon(data.get_abundances(octaves=False))
 
@@ -176,7 +176,9 @@ def write_outfile(model, stats, data, eq):
 ## Here abundances is an ordered dict of tuples which are (abundance, count)
 def shannon(abundances):
     ## Unpack the abundance dist
-    abunds = [v for v in abundances.values()]
+    abunds = []
+    for k, v in abundances.items():
+        abunds.extend([k] * v)
     tot = np.sum(abunds)
     return -1 * np.sum([x/float(tot) * math.log(x/float(tot)) for x in abunds  if x > 0])
 
