@@ -35,7 +35,7 @@ if __name__ == "__main__":
     for j in xrange(niters):
         print("iteration {}".format(j))
         ## Sample from uniform distribution
-        col_rates = [0.0001, 0.001, 0.01]]
+        col_rates = [0.0001, 0.001, 0.01]
         k_vals = [1000, 5000, 10000] 
     
         FNULL = open(os.devnull, 'w')
