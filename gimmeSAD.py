@@ -5,7 +5,7 @@ from ascii_graph import Pyasciigraph
 import matplotlib.patheffects as PathEffects
 import matplotlib.pyplot as plt
 from tabulate import tabulate
-from scipy.stats import iqr
+from scipy.stats import iqr, entropy
 import pandas as pd
 import numpy as np
 import subprocess
@@ -157,8 +157,9 @@ def write_outfile(model, stats, data, eq):
     ## Write the common data
     stats.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\t".format(data.local_inds, data.colonization_rate,\
                                                       data.current_time, eq, colrate, extrate, shan))
-    stats.write("\n")
-    return
+    ## TODO: Uncomment these lines to take it back to the old way with normalized SGD across all runs
+    #stats.write("\n")
+    #return
     heat = heatmap_pi_dxy_ascii(data, labels=False).strip()
     heat = np.array([np.array(x.split(" "), dtype=int) for x in heat.split("\n")])
 
@@ -870,7 +871,7 @@ def heatmap_pi_dxy_ascii(data, labels=False):
 
     heat = np.zeros((10,10), dtype=np.int)
 
-    pis = np.array([(x.dxy, x.pi_island) for x in sp])
+    pis = np.array([(x.pi_island, x.dxy) for x in sp])
     ## Set a reasonable default
     max_pi = max_pi_island = 0.1
     if pis.any():
@@ -898,9 +899,9 @@ def heatmap_pi_dxy_ascii(data, labels=False):
 
     ret = ""
     if labels:
-        ret = "mean/stdv/median/iqr pi {}/{}/{}/{}\tmean/stdv/median/iqr dxy {}/{}/{}/{}".format(\
-                                            np.mean(pivals), np.std(pivals), np.median(pivals), iqr(pivals),\
-                                                            np.mean(dxyvals), np.std(dxyvals), np.median(dxyvals), iqr(dxyvals))
+        ret = "mean/stdv/median/iqr/entropy pi {}/{}/{}/{}/{}\tmean/stdv/median/iqr/entropy dxy {}/{}/{}/{}/{}".format(\
+                                            np.mean(pivals), np.std(pivals), np.median(pivals), iqr(pivals), entropy(pivals),\
+                                                            np.mean(dxyvals), np.std(dxyvals), np.median(dxyvals), iqr(dxyvals), entropy(dxyvals))
     ## ascii format the data, and make a weak attempt to convey some information
     if labels:
         ret += "\nDxy\n"
@@ -1252,9 +1253,9 @@ if __name__ == "__main__":
                 data.local_community = tmp_local
 
             ## Do extra simulations per timestep
-            ## for j in xrange(0,1):
-            ##    data.simulate_seqs()
-            ##    write_outfile(args.model, stats, data, eq)
+            ##for j in xrange(0,10):
+            ##   data.simulate_seqs()
+            ##   write_outfile(args.model, stats, data, eq)
 
     progressbar(100, 100, "  |  {}  steps completed  |  Total runtime   {}".format(i, elapsed))
 
@@ -1285,7 +1286,7 @@ if __name__ == "__main__":
         print(tabulate_sumstats(data))
 
     ## Write out normalized pi_x_dxy heatmaps to the sumstats file
-    write_heats_to_outfile(args.model, stats, data, sp_through_time, equilibria)
+    #write_heats_to_outfile(args.model, stats, data, sp_through_time, equilibria)
 
     ## Write out to log files
     write_sizechanges(args.outdir, yoyo)
