@@ -37,11 +37,11 @@ if __name__ == "__main__":
     for j in xrange(10):
         print("iteration {}".format(j))
         ## Sample from uniform distribution
-        col_rates = [0.001, 0.05]
+        col_rates = [0.0001, 0.005]
         ## Samples from log-uniform distribution
         #col_rates = np.log10(np.array([0.001, 0.05]))
-        col_rates = np.random.uniform(col_rates[0], col_rates[1], 4)
-        #col_rates = np.power(10, col_rates)
+        col_rates = np.random.uniform(np.log(col_rates[0]), np.log(col_rates[1]), 4)
+        col_rates = np.exp(col_rates)
     
         ## Just do uniform for k values
         k_vals = np.random.random_integers(1000, 10000, 4)
