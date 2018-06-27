@@ -21,12 +21,13 @@ import os
 
 data_model = 2
 niters = 5
+origin = "volcanic"
 if __name__ == "__main__":
     ## 1e6 sims normally just barely gets to equilibrium for most models
     #NSIMS=1000000
     ## Run all the way to double equilibrium
     NSIMS=0
-    SIM_DIRECTORY="simout"
+    SIM_DIRECTORY="all_sgd_sims_" + origin
     #RECORDING_INTERVAL = NSIMS/100
     if not os.path.exists(SIM_DIRECTORY):
         os.mkdir(SIM_DIRECTORY)
@@ -34,8 +35,8 @@ if __name__ == "__main__":
     for j in xrange(niters):
         print("iteration {}".format(j))
         ## Sample from uniform distribution
-        col_rates = [0.005]
-        k_vals = [3000] 
+        col_rates = [0.0001, 0.001, 0.01]
+        k_vals = [1000, 5000, 10000] 
     
         FNULL = open(os.devnull, 'w')
         for i in xrange(10):
@@ -52,6 +53,7 @@ if __name__ == "__main__":
                             + " -c " + str(c)\
                             + " -k " + str(k)\
                             + " -o " + cursim_dir\
+                            + " -p " + origin\
                             + " --model={} ".format(data_model)\
                             + " -q "
                             #+ " > /dev/null &"
