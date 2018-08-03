@@ -8,6 +8,7 @@ import collections
 import numpy as np
 import itertools
 import random
+import glob
 import sys
 import os
 
@@ -71,6 +72,18 @@ class implicit_BI(object):
         ## Track how many invasives differentially survived
         self.survived_invasives = 0
         self.invasion_time = 0
+
+        ## empirical data
+        self.empirical_sample_sizes = []
+
+
+    def set_empirical(self, empirical_dir):
+        for f in glob.glob(empirical_dir + "/spider-fasta/*.fasta"):
+            with open(f) as infile:
+                ct = len(infile.readlines())
+                self.empirical_sample_sizes.append(ct/2)
+        #print("empircal sizes: {}".format(self.empirical_sample_sizes))        
+
 
     def set_metacommunity(self, infile):
         """
@@ -331,7 +344,8 @@ class implicit_BI(object):
         ## Setting colonization_time as a scaling factor rather than as a raw tdiv
         ## The old way of doing this is `self.current_time - tdiv`
         #self.species_objects = [species(UUID=UUID, colonization_time=1/float(tdiv), abundance=self.local_community.count(UUID),\
-        for UUID, tdiv in self.divergence_times.items():
+        for UUID, sample_count in zip(self.divergence_times.keys(), self.empirical_sample_sizes):
+            tdiv = self.divergence_times[UUID]
             #print(self.local_community)
             if UUID in self.local_community:
                 meta_abundance = -1
@@ -350,14 +364,19 @@ class implicit_BI(object):
                 self.species_objects.append(species(UUID=UUID, colonization_time=tdiv,\
                                         exponential=self.exponential, abundance=abundance,\
                                         meta_abundance=meta_abundance, migration_rate=migration_rate,\
-                                        abundances_through_time=self.abundances_through_time[UUID[0]]))
+                                        abundances_through_time=self.abundances_through_time[UUID[0]],\
+                                        sample_size=sample_count))
 
         for s in self.species_objects:
-            s.simulate_seqs()
-            s.get_sumstats()
-            ## For debugging invasives
-            #if s.abundance > 1000:
-            #    print("\n{}".format(s))
+            try:
+                s.simulate_seqs()
+                s.get_sumstats()
+                ## For debugging invasives
+                #if s.abundance > 1000:
+                #    print("\n{}".format(s))
+            except:
+                #print("  Sample size = {}".format(s.island_sample_size))
+                pass
 
     def set_species(self, species_objects):
         self.species_objects = species_objects

@@ -1000,6 +1000,10 @@ def parse_command_line():
         default="output",
         help="Output directory for log/data files and pngs")
 
+    parser.add_argument('--empirical_dir', metavar='empiricaldir', dest="empiricaldir", type=str,
+        default="empirical_data",
+        help="Directory with the empirical data")
+
     parser.add_argument("--model", metavar="model", dest="model", type=int,
         default=4,
         help="Data model for writing output files.")
@@ -1085,6 +1089,8 @@ if __name__ == "__main__":
     else:
         ## Implicit space, one colonizer per event
         data = implicit_BI.implicit_BI(K=args.K, colrate=args.colrate, exponential=args.exponential, quiet=args.quiet)
+
+    data.set_empirical(args.empiricaldir)
 
     ## Set model parameters
     data.set_metacommunity(args.meta)

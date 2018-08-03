@@ -21,7 +21,7 @@ import os
 
 data_model = 2
 niters = 5
-origin = "volcanic"
+origin = "landbridge"
 if __name__ == "__main__":
     ## 1e6 sims normally just barely gets to equilibrium for most models
     #NSIMS=1000000

@@ -115,6 +115,7 @@ if __name__ == "__main__":
         pis = []
         for f in files:
             pis.append(pi(f))
+        print(pis)
         dat = make_1D_heat(pis)
         outfile.write(dat)
 

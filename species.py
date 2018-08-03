@@ -16,7 +16,8 @@ class species(object):
 
     def __init__(self, UUID = "", exponential = False, harmonic = True,\
                  abundance = 1, meta_abundance = 1, colonization_time = 0,\
-                 migration_rate = 0, abundances_through_time=[]):
+                 migration_rate = 0, abundances_through_time=[],\
+                 sample_size=5):
         self.name = names.names().get_name()
         self.uuid = UUID
         self.abundance = abundance
@@ -30,8 +31,8 @@ class species(object):
 #        self.mutation_rate = 0.00000007
         self.sequence_length = 570
         self.tree_sequence = []
-        self.island_sample_size = 5
-        self.meta_sample_size = 5
+        self.island_sample_size = sample_size
+        self.meta_sample_size = 10
         self.abundances_through_time = abundances_through_time
 
         self.migration_rate = migration_rate
