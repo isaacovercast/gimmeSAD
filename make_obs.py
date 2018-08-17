@@ -33,6 +33,7 @@ def pi(file):
                 base_count = Counter(d)
                 ## ignore indels
                 del base_count["-"]
+                del base_count["N"]
                 for c in combinations(base_count.values(), 2):
                     #print(c)
                     n = c[0] + c[1]
