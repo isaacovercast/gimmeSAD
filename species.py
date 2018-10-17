@@ -21,8 +21,8 @@ class species(object):
         self.name = names.names().get_name()
         self.uuid = UUID
         self.abundance = abundance
-        self.alpha = 10
-        self.local_Ne = self.abundance * self.alpha
+        self.sigma = 10
+        self.local_Ne = self.abundance * self.sigma
         self.meta_abundance = meta_abundance * 100
         #self.colonization_time = np.log(colonization_time)
         self.colonization_time = colonization_time * 100
@@ -58,7 +58,7 @@ class species(object):
         ## If doing harmonic mean of abundances, calculate it here
         if harmonic:
             try:
-                self.local_Ne = int(hmean(np.array(self.abundances_through_time)*self.alpha))
+                self.local_Ne = int(hmean(np.array(self.abundances_through_time)*self.sigma))
             except Exception as inst:
                 print("Wat {}".format(inst))
                 print(self.abundances_through_time)
@@ -179,7 +179,7 @@ class species(object):
 
     def update_abundance(self, abund):
         self.abundance = abund
-        self.local_Ne = abund * self.alpha
+        self.local_Ne = abund * self.sigma
 
 
 def tajD_island(haplotypes, S):
