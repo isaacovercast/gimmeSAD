@@ -13,6 +13,17 @@ conda install -c iovercast gimmesad
 ## Basic usage
 In the basic usage of `gimmeSAD` the most fundamental arguments are the size of the local community (`-k`, which is measured in number of individuals), and the colonization rate (`-c`, which is the probability per timestep of a colonization event).  
 
+### Quickstart tl;dr
+`gimmeSAD -k 1000 -c 0.01`
+
+This command will run a model with community size 1000, and colonization rate 0.01 and store the results in a directory called `output`. This simulation will run for 50000 time steps (very short). Duration of simulations can be controlled with the `-n` flag to specify the number of steps (0 will simply run the simulation to equilibrium):
+
+`gimmeSAD -k 1000 -c 0.01 -n 0 -f`
+
+Additionally here we've introduced the `-f` flag to force overwriting the output directory. Alternatively one might explicitly specify an output directory for each simulation with the `-o` flag:
+
+`gimmeSAD -k 1000 -c 0.01 -n 0 -o new_sim1`
+
 At any time the `-h` flag can be passed to the `gimmeSAD` command to display copious usage information, as well as a few example command line uses. 
 
 ```
@@ -71,6 +82,9 @@ optional arguments:
     gimmeSAD -q                         ## Don't be so chatty
     gimmeSAD -v                         ## Be very chatty
 ```
+
+### Running simulations in parallel
+Several scripts are provided in the `scripts` directory to facilitate running multiple simulations in parallel, and to explore ranges of parameter space.
 
 ## License
 [![License: CC BY-SA 4.0](https://img.shields.io/badge/License-CC%20BY--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-sa/4.0/)  
