@@ -6,7 +6,7 @@ import glob
 import os
 from itertools import combinations
 from collections import Counter
-from MESS.stats import shannon
+from scipy.stats import entropy
 
 
 def pi(file):
@@ -111,8 +111,7 @@ if __name__ == "__main__":
     if args.abund_file:
         dat = open(args.abund_file).read().strip().split(",")
         dat = map(int, dat)
-        dat = Counter(dat)
-        outfile.write(str(shannon(dat)) + "\t")
+        outfile.write(str(entropy(dat)) + "\t")
         
     ## Get 1D pi vector
     if args.fasta_files:
