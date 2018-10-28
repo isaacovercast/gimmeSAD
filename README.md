@@ -1,6 +1,10 @@
 ## gimmeSAD - Joint modelling of abundance and genetic diversity. 
 
-gimmeSAD is an integrated model of population genetics and community ecology. It allows one to model abundance in an ecological community under a neutral process while simultaneously modelling neutral population genetic variation.
+gimmeSAD is an integrated model of population genetics and community ecology. It allows one to model abundance in an ecological community under a neutral process while simultaneously modelling neutral population genetic variation. Briefly, the typical workflow would look like this:
+1. Identify model parameter ranges for investigation
+2. Simulate many, many joint abundance/genetic diversity distributions for communities given random draws from the parameter ranges.
+3. Import observed abundance distributions and fasta data for all species in the target community and convert the data to for downstream inference.
+4. Perform an ABC parameter estimation procedure to select the summary simulations that most closely resemble the observed data, and generate posterior distributions on the model parameters.
 
 ## Quick install
 After installing [conda for python2.7](https://conda.io/docs/user-guide/install/index.html), you can create a new conda env and install gimmeSAD inside it:
