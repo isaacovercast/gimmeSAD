@@ -6,4 +6,4 @@ ipython-notebooks/.ipynb_checkpoints/
 gimmeSAD.egg-info/
 dist/
 build/
-*/output/*
+output/*
