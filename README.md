@@ -1,4 +1,4 @@
-# gimmeSAD - Joint modelling of abundance and genetic diversity. 
+## gimmeSAD - Joint modelling of abundance and genetic diversity. 
 
 gimmeSAD is an integrated model of population genetics and community ecology. It allows one to model abundance in an ecological community under a neutral process while simultaneously modelling neutral population genetic variation.
 
