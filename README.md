@@ -11,8 +11,8 @@ conda install -c iovercast gimmesad
 ```
 
 ## License
-[![License: CC BY-SA 4.0](https://img.shields.io/badge/License-CC%20BY--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-sa/4.0/)
-gimmeSAD is licensed under under the Creative Commons Attribution-ShareAlike license.
+[![License: CC BY-SA 4.0](https://img.shields.io/badge/License-CC%20BY--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-sa/4.0/)  
+gimmeSAD is licensed under under the Creative Commons Attribution-Share Alike license.
 
 ## Citing gimmeSAD
 The manuscript describing the simulation method and an approximate Bayesian computation framework for parameter estimation may be cited as:
