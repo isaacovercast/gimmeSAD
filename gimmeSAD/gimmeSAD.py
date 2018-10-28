@@ -19,6 +19,9 @@ import sys
 import os
 
 plt.switch_backend('agg')
+np.seterr(all='ignore')
+import warnings
+warnings.filterwarnings("ignore")
 
 import implicit_BI
 import implicit_CI
