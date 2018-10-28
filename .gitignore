@@ -5,3 +5,4 @@ ipython-notebooks/.ipynb_checkpoints/
 *.svg
 gimmeSAD.egg-info/
 dist/
+build/

@@ -1075,7 +1075,7 @@ def progressbar(nsims, finished, msg=""):
     sys.stdout.flush()
 
 
-if __name__ == "__main__":
+def main():
 
     ## Parse command line arguments
     args = parse_command_line()
@@ -1317,3 +1317,5 @@ if __name__ == "__main__":
         plot_abundance_vs_colonization_time(args.outdir, sp_through_time, equilibria,\
                     stats_models=args.plot_models, as_curve=args.curves)
 
+if __name__ == "__main__":
+    main()

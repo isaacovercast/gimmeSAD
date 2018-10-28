@@ -23,7 +23,7 @@ setup(
     #dependencies=dependency_links(),
     entry_points={
             'console_scripts': [
-                'gimmeSAD = gimmeSAD:main',
+                'gimmeSAD = gimmeSAD.gimmeSAD:main',
             ],
     },
     license='CC-BY-SA',

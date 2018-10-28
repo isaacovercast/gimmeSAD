@@ -25,7 +25,7 @@ if __name__ == "__main__":
     ## Run all the way to double equilibrium
     NSIMS=0
     if sys.argv[1] == "1":
-        SIM_DIRECTORY="1d_sims"
+        SIM_DIRECTORY="1d_sims_big"
         DATA_MODEL=2
     else:
         SIM_DIRECTORY="2d_sims"
@@ -37,14 +37,14 @@ if __name__ == "__main__":
     for j in xrange(10):
         print("iteration {}".format(j))
         ## Sample from uniform distribution
-        col_rates = [0.0001, 0.005]
+        col_rates = [0.0001, 0.01]
         ## Samples from log-uniform distribution
         #col_rates = np.log10(np.array([0.001, 0.05]))
         col_rates = np.random.uniform(np.log(col_rates[0]), np.log(col_rates[1]), 4)
         col_rates = np.exp(col_rates)
     
         ## Just do uniform for k values
-        k_vals = np.random.random_integers(1000, 10000, 4)
+        k_vals = np.random.random_integers(10000, 30000, 4)
         #k_vals = np.log10(np.array([1000, 10000]))
         #k_vals = np.random.uniform(k_vals[0], k_vals[1], 3)
         #k_vals = map(int, np.power(10, k_vals))

@@ -96,7 +96,7 @@ class implicit_BI(object):
         if infile == "logser":
             ## Parameter of the logseries distribution
             p = .98
-            self.abundances = logser.rvs(p, size=self.local_inds)
+            self.abundances = logser.rvs(p, size=100)
         elif infile == "uniform":
             #for i in range(self.uniform_inds):
             self.abundances = [self.uniform_inds] * self.uniform_species
