@@ -27,7 +27,6 @@ requirements:
     - certifi
     - rpy2
   run:
-    - setuptools
     - ipython >=5.0.0
     - ipyparallel >=6.0.2
     - cython
@@ -42,6 +41,11 @@ requirements:
     - macroeco
     - mpmath
     - rpy2
+    - ascii_graph
+    - macroeco
+    - msprime
+    - setuptools
+    - tabulate
   commands:
     - gimmeSAD -v
 
