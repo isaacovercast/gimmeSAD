@@ -3,7 +3,7 @@
 gimmeSAD is an integrated model of population genetics and community ecology. It allows one to model abundance in an ecological community under a neutral process while simultaneously modelling neutral population genetic variation. Briefly, the typical workflow would look like this:
 1. Identify model parameter ranges for investigation
 2. Simulate many, many joint abundance/genetic diversity distributions for communities given random draws from the parameter ranges.
-3. Import observed abundance distributions and fasta data for all species in the target community and convert the data to for downstream inference.
+3. Import observed abundance distributions and fasta data for all species in the target community and convert the data for downstream inference.
 4. Perform an ABC parameter estimation procedure to select the summary simulations that most closely resemble the observed data, and generate posterior distributions on the model parameters.
 
 ## Quick install
@@ -95,6 +95,55 @@ Several scripts are provided in the `scripts` directory to facilitate running mu
 
 ### jupyter notebooks
 All simulations and analyses performed in the manuscript can be reproduced using the jupyter notebooks in the `ipython-notebooks` directory. 
+
+## Importing observed data
+gimmeSAD allows to import any combination of community abundance (counts per species) and genetic variation in the form of fasta files per species. A script is provided for this conversion: `scripts/make_obs.py`. Empirical data for the La Reunion spider community analysed in the manuscript is included as example data. The `make_obs.py` script can take up to 3 arguments:
+
+```
+./make_obs.py -h
+usage: make_obs.py [-h] [-a abund_file] [-f fasta_files] [-o outfile]
+
+optional arguments:
+  -h, --help      show this help message and exit
+  -a abund_file   File with observed abundances.
+  -f fasta_files  Directory containing observed fasta files, one per species.
+  -o outfile      Directory containing observed fasta files, one per species.
+```
+### Abundance data format
+Abundance data should be formatted as a single file with abundance per species in a single line as a comma separated list. For example (from a terminal in the `scripts` directory):
+
+```
+$ cat ../empirical_data/abunds.txt 
+5493, 1042, 471, 387, 374, 343, 263, 239, 228, 210, ..., 6, 5, 4, 4, 3, 3, 3, 2, 2, 2, 1, 1, 1
+$ ./make_obs.py -a ../empirical_data/abunds.txt -o abund_only.txt`
+$ cat abund_only.txt
+shannon 
+2.24620615577
+```
+
+### Genetic data format
+Genetic data should be formatted as a directory with one fasta file per species. **NB: These fasta files must be aligned.** If they aren't aligned per species then you'll get really wacky, inflated values of pi. Not good.
+
+```
+$ ls ../empirical_data/spider-fasta/
+GL-01a.fasta  GL-04.fasta  GL-09.fasta  <output_clipped>  GL-39.fasta  GL-44.fasta   GL-48.fasta  GL-53.fasta
+$ ./make_obs.py -f ../empirical_data/spider-fasta/ -o pis_only.txt
+$ cat pis_only.txt
+bin_0   bin_1   bin_2   bin_3   bin_4   bin_5   bin_6   bin_7   bin_8   bin_9
+8       26      8       5       1       2       1       3       1 
+```
+
+### Output format
+The output format is a file that contains Shannon entropy (if abundances are provided) and the 1D-SGD constructed from pi values calculated from observed sequence data (if those are provided). The observed data for the spider community generates a file that looks like this:
+
+```
+$ ./make_obs.py -f ../empirical_data/spider-fasta/ -a ../empirical_data/abunds.txt -o full_obs.txt
+$ cat full_obs.txt
+shannon     bin_0   bin_1   bin_2   bin_3   bin_4   bin_5   bin_6   bin_7   bin_8   bin_9
+2.24620615577   8   26  8   5   1   2   1   3   1   2
+```
+
+This output file can now be used in an ABC framework, examples of which can be found in the `ipython-notebooks` directory.
 
 ## License
 [![License: CC BY-SA 4.0](https://img.shields.io/badge/License-CC%20BY--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-sa/4.0/)  
