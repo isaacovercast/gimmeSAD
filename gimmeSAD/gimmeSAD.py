@@ -1004,7 +1004,7 @@ def parse_command_line():
         help="Output directory for log/data files and pngs")
 
     parser.add_argument('--empirical_dir', metavar='empiricaldir', dest="empiricaldir", type=str,
-        default="empirical_data",
+        default="../empirical_data",
         help="Directory with the empirical data")
 
     parser.add_argument("--model", metavar="model", dest="model", type=int,
@@ -1290,7 +1290,7 @@ def main():
     ## Print out some informative business
     ## Get all results and write out final sumstats
     abundance_distribution = data.get_abundances(octaves=args.octaves)
-    if not not args.quiet:
+    if not args.quiet:
         print(plot_abundances_ascii(abundance_distribution))
         print(tabulate_sumstats(data))
 
