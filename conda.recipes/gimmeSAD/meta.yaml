@@ -1,0 +1,51 @@
+package:
+  name: gimmesad 
+  version: "1.0"
+
+source:
+  git_url: https://github.com/isaacovercast/gimmeSAD
+  git_tag: master
+
+build:
+  number: 2
+
+requirements:
+  build:
+    - python
+    - setuptools
+    - msprime
+    - macroeco
+    - ipyparallel >=6.0.2
+    - scipy >=0.16
+    - cython
+    - numpy >=1.7
+    - ipython
+    - numpy
+    - pandas
+    - svgwrite
+    - mpmath
+    - certifi
+    - rpy2
+  run:
+    - setuptools
+    - ipython >=5.0.0
+    - ipyparallel >=6.0.2
+    - cython
+    - scipy >=0.16
+    - nbconvert
+    - jupyter_client
+    - jupyter
+    - notebook >=5.0
+    - pandas
+    - numpy >=1.7
+    - msprime
+    - macroeco
+    - mpmath
+    - rpy2
+  commands:
+    - gimmeSAD -v
+
+about:
+  home: https://github.com/isaacovercast/gimmeSAD
+  license: CC-BY-SA
+  summary: A joint model of community abundance and genetic variation.

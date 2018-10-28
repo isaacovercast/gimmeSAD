@@ -3,3 +3,5 @@ ipython-notebooks/.ipynb_checkpoints/
 .ipynb_checkpoints/
 *sims*
 *.svg
+gimmeSAD.egg-info/
+dist/
