@@ -183,7 +183,7 @@ class implicit_BI(object):
                 ## Record local extinction events
                 if not victim in self.local_community:
                     ## This was supposed to not record "extinctions" of empty deme space
-                    ## but it fucks up the calculation of extinction rate
+                    ## but it fsck up the calculation of extinction rate
                     ##if not victim[0] == None:
                     if True:
                         self.extinctions += 1

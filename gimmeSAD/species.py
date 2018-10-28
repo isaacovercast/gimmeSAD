@@ -209,7 +209,7 @@ def pairwise_diffs(haplotypes):
 def watt_theta(n, S):
     return S/sum([1./x for x in xrange(1,n)])
 
-## Fuckin helps if you do it right. This page has a nice worked example with values for each
+## @#!&*^&# helps if you do it right. This page has a nice worked example with values for each
 ## subfunction so you can check your equations:
 ## https://ocw.mit.edu/courses/health-sciences-and-technology/hst-508-quantitative-genomics-fall-2005/study-materials/tajimad1.pdf
 def tajD_denom(n, S):

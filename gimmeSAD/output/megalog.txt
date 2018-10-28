@@ -1,0 +1,11 @@
+%eq	step	Species_uuid	Col_time	mig_rate	Loc_Abund	Meta_Abund	pi	pi_net	Dxy	S	S_island	pi_island	tajD_island	S_meta	pi_meta
+
+
+
+
+
+
+
+
+
+

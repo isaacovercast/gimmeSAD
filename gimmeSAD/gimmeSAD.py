@@ -29,7 +29,7 @@ import implicit_CI
 # pylint: disable=C0103
 # pylint: disable=R0903
 
-## The fuckin profiling function I always forget:
+## The profiling function I always forget:
 ## python -m cProfile -s cumtime gimmeSAD.py -n 0 -k 1000 -o /tmp/wat -f > res.txt
 
 class gimmeSAD(object):
@@ -319,9 +319,9 @@ def heatmap_pi_dxy(data, write="", title=""):
 
 ## Doesn't exactly work right, it'll prune extant species but there's 
 ## a good chance an extant species has colonized, then gone extinct,
-## then recolonized (which is allowable), but it fucks up the plotting
+## then recolonized (which is allowable), but it messes up the plotting
 def prune_extant(sp_through_time):
-    """ This is fucked because at each recording period the species
+    """ This is broken because at each recording period the species
     get new names generated for them, even though the UUID is the same """
 
     ## Get the uuids of all extant species
@@ -639,7 +639,7 @@ def normalized_pi_dxy_heatmaps(outdir, sp_through_time, equilibria, one_d=False,
 #    max_pi_island = np.average(my_pi_islands)
     max_dxy = np.median(my_dxys)
     max_pi_island = np.median(my_pi_islands)
-    ## However this function is calculating the heatmaps is fucked up, so you have to
+    ## However this function is calculating the heatmaps is buggered up, so you have to
     ## hard code max values for pi and dxy here.
     max_dxy = 0.04
     max_pi_island = 0.02
@@ -1248,7 +1248,7 @@ def main():
             for p,c in diversity_stats.values():
                 if p > 0.3 or c > 0.3:
                     print(tabulate_sumstats(data))
-                    print("one is fuck: pi {} dxy {}".format(p,c))
+                    print("Bad pis: pi {} dxy {}".format(p,c))
                     #sys.exit()
             ## Write to the output file
             if reached_equilib:
@@ -1290,7 +1290,7 @@ def main():
     ## Print out some informative business
     ## Get all results and write out final sumstats
     abundance_distribution = data.get_abundances(octaves=args.octaves)
-    if not args.quiet:
+    if not not args.quiet:
         print(plot_abundances_ascii(abundance_distribution))
         print(tabulate_sumstats(data))
 
