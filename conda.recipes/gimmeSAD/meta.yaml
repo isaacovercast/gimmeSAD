@@ -46,6 +46,7 @@ requirements:
     - msprime
     - setuptools
     - tabulate
+    - openblas
   commands:
     - gimmeSAD -v
 
