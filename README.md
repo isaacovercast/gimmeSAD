@@ -3,12 +3,15 @@
 gimmeSAD is an integrated model of population genetics and community ecology. It allows one to model abundance in an ecological community under a neutral process while simultaneously modelling neutral population genetic variation.
 
 ## Quick install
-After installing conda for python2.7, you can create a new conda env and install gimmeSAD inside it:
+After installing [conda for python2.7](https://conda.io/docs/user-guide/install/index.html), you can create a new conda env and install gimmeSAD inside it:
 ```
 conda create -n py27-gimmeSAD python=2.7
-conda activate py27-gimmeSAD
+source activate py27-gimmeSAD
 conda install -c iovercast gimmesad
 ```
+
+### Install requirements
+The gimmeSAD conda package is tested and known to install and run on a clean conda install, in a clean conda env on Ubuntu Linux 16.04. It _should_ work on any modern linux distro, and it _should_ also work on Mac os, but you may experience some turbulance with installing some dependencies in conda.
 
 ## Basic usage
 In the basic usage of `gimmeSAD` the most fundamental arguments are the size of the local community (`-k`, which is measured in number of individuals), and the colonization rate (`-c`, which is the probability per timestep of a colonization event).  
@@ -85,6 +88,9 @@ optional arguments:
 
 ### Running simulations in parallel
 Several scripts are provided in the `scripts` directory to facilitate running multiple simulations in parallel, and to explore ranges of parameter space.
+
+### jupyter notebooks
+All simulations and analyses performed in the manuscript can be reproduced using the jupyter notebooks in the `ipython-notebooks` directory. 
 
 ## License
 [![License: CC BY-SA 4.0](https://img.shields.io/badge/License-CC%20BY--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-sa/4.0/)  
