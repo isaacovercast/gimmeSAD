@@ -145,6 +145,17 @@ shannon     bin_0   bin_1   bin_2   bin_3   bin_4   bin_5   bin_6   bin_7   bin_
 
 This output file can now be used in an ABC framework, examples of which can be found in the `ipython-notebooks` directory.
 
+### Runtime estimates
+Both forward time and backward time processes are stochastic, so we can only give a sketch of average runtimes. Simulation runtime will be heavily dependent on the `k` and `c` parameters, with larger `k` (smaller `c`) increasing runtime. In typical use, one would perform thousands to millions of simulations under a range of parameter values, so parallelizing across multiple cores of a workstation is highly recommended.
+
+#### Average runtime (across 1000 replicates) for different values of `k` and `c`
+
+|K|c = 0.005|c = 0.01|
+|-|---------|--------|
+|1000|~10 seconds|~3 seconds|
+|5000|~1 minute|~30 seconds|
+|10000|~5 minutes|~3 minutes|
+
 ## License
 [![License: CC BY-SA 4.0](https://img.shields.io/badge/License-CC%20BY--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-sa/4.0/)  
 gimmeSAD is licensed under under the Creative Commons Attribution-Share Alike license.
