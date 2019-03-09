@@ -163,5 +163,5 @@ gimmeSAD is licensed under under the Creative Commons Attribution-Share Alike li
 ## Citing gimmeSAD
 The manuscript describing the simulation method and an approximate Bayesian computation framework for parameter estimation may be cited as:
 
-`Overcast, I., Emerson, B., Hickerson, M. "An integrated model of population genetics and community ecology". (In Review).`
+`Overcast I, Emerson BC, Hickerson MJ. An integrated model of population genetics and community ecology. J Biogeogr. 2019;00:1–14. https://doi.org/10.1111/jbi.13541`
 
